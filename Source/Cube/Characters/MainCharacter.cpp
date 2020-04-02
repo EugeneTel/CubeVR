@@ -5,6 +5,7 @@
 #include "MainCharacterMovementComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 
@@ -18,6 +19,15 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	/**
+	 * Hands components
+	 */
+	HandMeshRight = CreateAbstractDefaultSubobject<USkeletalMeshComponent>(TEXT("HandMeshRight"));
+	HandMeshRight->SetupAttachment(RightMotionController);
+
+	HandMeshLeft = CreateAbstractDefaultSubobject<USkeletalMeshComponent>(TEXT("HandMeshLeft"));
+	HandMeshLeft->SetupAttachment(LeftMotionController);
+
 	GrabSphereRight = CreateDefaultSubobject<USphereComponent>(TEXT("GrabSphereRight"));
 	GrabSphereRight->SetupAttachment(RightMotionController);
 	GrabSphereRight->SetSphereRadius(4.f);
@@ -26,6 +36,7 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	GrabSphereLeft->SetupAttachment(LeftMotionController);
 	GrabSphereLeft->SetSphereRadius(4.f);
 
+	bInTunnel = false;
 
 }
 
@@ -82,7 +93,7 @@ void AMainCharacter::Tick(float DeltaTime)
 */
 
 // GetNearestOverlappingObject
-UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent)
+UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag)
 {
 	if (OverlapComponent == nullptr)
 	{
@@ -107,16 +118,17 @@ UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveCompo
 	// prepare variable for results
 	TArray <UPrimitiveComponent*> OutComponents;
 
-	// get overlaping components
+	// get overlapping components
 	if (!UKismetSystemLibrary::ComponentOverlapComponents(OverlapComponent, OverlapComponent->GetComponentTransform(), ComponentTransform, nullptr, ActorsToIgnore, OutComponents))
 	{
 		return nullptr;
 	}
 
-	// Go through all overlaped components and looking for the first valid
+	// Go through all overlapped components and looking for the first valid
 	for (UPrimitiveComponent* OutComponent : OutComponents)
 	{
-		if (HasValidGripCollision(OutComponent))
+		bool bByTag = Tag == "" ? true : OutComponent->ComponentHasTag(Tag);
+		if (HasValidGripCollision(OutComponent) && bByTag)
 		{
 			return OutComponent;
 		}
@@ -132,14 +144,22 @@ UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveCompo
 // CheckAndHandleClimbing
 void AMainCharacter::CheckAndHandleClimbing(UPrimitiveComponent* GrabSphere, UGripMotionControllerComponent* CallingMotionController)
 {
-	UPrimitiveComponent* OverlapingObject = GetNearestOverlappingObject(GrabSphere);
+	UPrimitiveComponent* OverlappingObject = GetNearestOverlappingObject(GrabSphere, TEXT("climable"));
 
-	if (OverlapingObject == nullptr || OverlapingObject->ComponentHasTag(TEXT("climable")) == false)
+	if (OverlappingObject == nullptr)
 	{
 		return;
 	}
 
-	MainCharacterMovementComponent->InitClimbing(CallingMotionController, OverlapingObject);
+	if (OverlappingObject->ComponentHasTag(TEXT("crouchable")))
+	{
+		InitTunnelCroach();
+	}
+	else {
+		StopTunnelCroach();
+	}
+
+	MainCharacterMovementComponent->InitClimbing(CallingMotionController, OverlappingObject);
 }
 
 // CheckAndStopClimbing
@@ -148,12 +168,18 @@ void AMainCharacter::CheckAndStopClimbing(UGripMotionControllerComponent* Callin
 	if (MainCharacterMovementComponent->bHandClimbing && CallingMotionController == MainCharacterMovementComponent->ClimbingHand)
 	{
 		MainCharacterMovementComponent->StopClimbing();
+		StopTunnelCroach();
 	}
 }
 
 /**
 * Gripping logic
 */
+
+bool AMainCharacter::CheckAndHandleGripAnimations()
+{
+	return false;
+}
 
 // HasValidGripCollision
 bool AMainCharacter::HasValidGripCollision(UPrimitiveComponent* Component)
@@ -212,5 +238,30 @@ void AMainCharacter::MoveForward(float Value)
 void AMainCharacter::MoveRight(float Value)
 {
 	AddMovementInput(GetVRRightVector(), Value);
+}
+
+void AMainCharacter::InitTunnelCroach()
+{
+	if (bInTunnel)
+	{
+		return;
+	}
+
+	bInTunnel = true;
+	VRRootReference->SetCapsuleHalfHeightVR(35.f);
+
+	TunnelCroachOffset = VRReplicatedCamera->GetComponentLocation().Z - VRRootReference->GetComponentLocation().Z - 55.f;
+	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
+	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
+}
+
+void AMainCharacter::StopTunnelCroach()
+{
+	if (!bInTunnel)
+		return;
+
+	VRRootReference->SetCapsuleHalfHeightVR(96.f);
+	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
+	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
 }
 

@@ -51,10 +51,10 @@ public:
 	* Common properties and methods
 	*/
 	UFUNCTION(BlueprintCallable)
-	UPrimitiveComponent* GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent);
+	UPrimitiveComponent* GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag = "");
 
 	/**
-	* Gripping properties and methods
+	* Hands properties and methods
 	*/
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
@@ -63,6 +63,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
 	class USphereComponent* GrabSphereLeft;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
+	class USkeletalMeshComponent* HandMeshLeft;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
+	class USkeletalMeshComponent* HandMeshRight;
+
+	UFUNCTION(BlueprintCallable)
+	bool CheckAndHandleGripAnimations();
 
 	UFUNCTION(BlueprintCallable)
 	bool HasValidGripCollision(UPrimitiveComponent* Component);
@@ -109,5 +118,18 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void MoveRight(float Value);
+
+	// Tunnel Croach
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bInTunnel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float TunnelCroachOffset;
+
+	UFUNCTION(BlueprintCallable)
+	void InitTunnelCroach();
+
+	UFUNCTION(BlueprintCallable)
+	void StopTunnelCroach();
 
 };

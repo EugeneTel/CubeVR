@@ -8,7 +8,7 @@ public class Cube : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "VRExpansionPlugin", "GameplayTags" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "Debug" });
 

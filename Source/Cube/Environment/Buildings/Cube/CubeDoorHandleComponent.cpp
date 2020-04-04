@@ -55,7 +55,13 @@ void UCubeDoorHandleComponent::ToggleLock()
 
 void UCubeDoorHandleComponent::ResetProgress()
 {
-// TODO: Implement reset functionality
+	Unlock();
+	SetRelativeRotation(FRotator::ZeroRotator);
+	if (IsValid(OppositeHandle))
+	{
+		OppositeHandle->SetRelativeRotation(FRotator::ZeroRotator);
+	}
+
 }
 
 

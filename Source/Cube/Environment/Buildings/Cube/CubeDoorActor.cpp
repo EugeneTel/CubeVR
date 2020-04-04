@@ -17,7 +17,7 @@ ACubeDoorActor::ACubeDoorActor(const FObjectInitializer& ObjectInitializer)
 	Spline = CreateDefaultSubobject<USplineComponent>(TEXT("Spline"));
 	Spline->SetupAttachment(RootComponent);
 
-	Slider = CreateDefaultSubobject<UCubeDoorSliderComponent>(TEXT("Slider"));
+	Slider = CreateDefaultSubobject<UCubeDoorComponent>(TEXT("Slider"));
 	Slider->SetupAttachment(RootComponent);
 	Slider->SplineComponentToFollow = Spline;
 
@@ -27,7 +27,7 @@ ACubeDoorActor::ACubeDoorActor(const FObjectInitializer& ObjectInitializer)
 
 void ACubeDoorActor::OnChildGrip_Implementation(UGripMotionControllerComponent* GrippingController, const FBPActorGripInformation& GripInformation)
 {
-	ULog::Success("----------------Child Grip-------------", LO_Both);
+	//ULog::Success("----------------Child Grip-------------", LO_Both);
 
 	// If user grip Handle - grep door slider too
 	if (GripInformation.GrippedObject == Handle)
@@ -73,7 +73,7 @@ void ACubeDoorActor::SetOppositeDoor()
 
 	if (IsValid(Slider) && OppositeDoor != nullptr && IsValid(OppositeDoor->Slider))
 	{ 
-		Slider->OppositeSlider = OppositeDoor->Slider;
+		Slider->OppositeDoor = OppositeDoor->Slider;
 	}
 
 	if (IsValid(Handle) && OppositeDoor != nullptr && IsValid(OppositeDoor->Handle))
@@ -84,7 +84,7 @@ void ACubeDoorActor::SetOppositeDoor()
 
 void ACubeDoorActor::HandleChangeState(bool LeverStatus, EVRInteractibleLeverEventType LeverStatusType, float LeverAngleAtTime)
 {
-	ULog::Success("------------------HANDLE BLOCK-----------------", LO_Both);
+	//ULog::Success("------------------HANDLE BLOCK-----------------", LO_Both);
 	Handle->Lock();
 	Slider->Unlock();
 }
@@ -110,7 +110,7 @@ void ACubeDoorActor::OnHandleGripDoor()
 
 void ACubeDoorActor::InitDoorAutoClosing()
 {
-	GetWorldTimerManager().SetTimer(DoorAutoClosingTimerHandle, Slider, &UCubeDoorSliderComponent::StartAutoClosing, 5.f, false);
+	GetWorldTimerManager().SetTimer(DoorAutoClosingTimerHandle, Slider, &UCubeDoorComponent::StartAutoClosing, 5.f, false);
 }
 
 void ACubeDoorActor::CancelDoorAutoClosing()

@@ -119,9 +119,20 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void MoveRight(float Value);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bCroaching;
+
 	// Tunnel Croach
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	bool bInTunnel;
+
+	// Enter to the Tunnel Collision
+	UFUNCTION(BlueprintCallable)
+	void EnterTunnel();
+
+	// Exit from all Tunnels
+	UFUNCTION(BlueprintCallable)
+	void ExitTunnel();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float TunnelCroachOffset;

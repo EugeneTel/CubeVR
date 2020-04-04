@@ -22,10 +22,10 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	/**
 	 * Hands components
 	 */
-	HandMeshRight = CreateAbstractDefaultSubobject<USkeletalMeshComponent>(TEXT("HandMeshRight"));
+	HandMeshRight = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HandMeshRight"));
 	HandMeshRight->SetupAttachment(RightMotionController);
 
-	HandMeshLeft = CreateAbstractDefaultSubobject<USkeletalMeshComponent>(TEXT("HandMeshLeft"));
+	HandMeshLeft = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HandMeshLeft"));
 	HandMeshLeft->SetupAttachment(LeftMotionController);
 
 	GrabSphereRight = CreateDefaultSubobject<USphereComponent>(TEXT("GrabSphereRight"));
@@ -37,6 +37,7 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	GrabSphereLeft->SetSphereRadius(4.f);
 
 	bInTunnel = false;
+	bCroaching = false;
 
 }
 
@@ -155,9 +156,6 @@ void AMainCharacter::CheckAndHandleClimbing(UPrimitiveComponent* GrabSphere, UGr
 	{
 		InitTunnelCroach();
 	}
-	else {
-		StopTunnelCroach();
-	}
 
 	MainCharacterMovementComponent->InitClimbing(CallingMotionController, OverlappingObject);
 }
@@ -168,7 +166,6 @@ void AMainCharacter::CheckAndStopClimbing(UGripMotionControllerComponent* Callin
 	if (MainCharacterMovementComponent->bHandClimbing && CallingMotionController == MainCharacterMovementComponent->ClimbingHand)
 	{
 		MainCharacterMovementComponent->StopClimbing();
-		StopTunnelCroach();
 	}
 }
 
@@ -240,15 +237,27 @@ void AMainCharacter::MoveRight(float Value)
 	AddMovementInput(GetVRRightVector(), Value);
 }
 
+void AMainCharacter::EnterTunnel()
+{
+	bInTunnel = true;
+}
+
+void AMainCharacter::ExitTunnel()
+{
+	bInTunnel = false;
+	StopTunnelCroach();
+}
+
 void AMainCharacter::InitTunnelCroach()
 {
-	if (bInTunnel)
-	{
+	if (bCroaching)
 		return;
-	}
 
-	bInTunnel = true;
-	VRRootReference->SetCapsuleHalfHeightVR(35.f);
+	//ULog::Success("+++++++++++++++++++++++++++++++++InitTunnelCroach++++++++++++++++++++++++++++++++", LO_Both);
+
+	bCroaching = true;
+
+	VRRootReference->SetCapsuleHalfHeightVR(30.f);
 
 	TunnelCroachOffset = VRReplicatedCamera->GetComponentLocation().Z - VRRootReference->GetComponentLocation().Z - 55.f;
 	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
@@ -257,8 +266,12 @@ void AMainCharacter::InitTunnelCroach()
 
 void AMainCharacter::StopTunnelCroach()
 {
-	if (!bInTunnel)
+	if (!bCroaching)
 		return;
+
+	//ULog::Error("+++++++++++++++++++++++++++++++++StopTunnelCroach++++++++++++++++++++++++++++++++", LO_Both);
+
+	bCroaching = false;
 
 	VRRootReference->SetCapsuleHalfHeightVR(96.f);
 	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));

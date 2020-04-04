@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Grippables/GrippableActor.h"
-#include "CubeDoorSliderComponent.h"
+#include "CubeDoorComponent.h"
 #include "CubeDoorHandleComponent.h"
 #include "Components/SplineComponent.h"
 #include "TimerManager.h"
@@ -45,7 +45,7 @@ public:
 
 	// Door slider component with static mesh
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cube")
-	UCubeDoorSliderComponent* Slider;
+	UCubeDoorComponent* Slider;
 
 	// Door handle component with static mesh
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cube")

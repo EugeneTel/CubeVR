@@ -33,6 +33,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Cube")
 	ACubeWallActor* OppositeWall;
 
+	UFUNCTION(BlueprintCallable)
+	bool FindOppositeWall(ACubeWallActor*& OutOppositeWall);
+
+	UFUNCTION(BlueprintCallable)
+	void SetOppositeWall(ACubeWallActor* WallActor);
+
 	// Wall Static Mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
 	UStaticMeshComponent* WallMesh;

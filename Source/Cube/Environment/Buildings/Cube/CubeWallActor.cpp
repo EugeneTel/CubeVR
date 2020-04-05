@@ -59,6 +59,13 @@ void ACubeWallActor::BeginPlay()
 
 	TunnelCollision->OnComponentBeginOverlap.AddDynamic(this, &ACubeWallActor::OnTunnelCollisionOverlapBegin);
 	TunnelCollision->OnComponentEndOverlap.AddDynamic(this, &ACubeWallActor::OnTunnelCollisionOverlapEnd);
+
+	// Try to set Opposite Wall
+	ACubeWallActor* OutOppositeWall;
+	if (FindOppositeWall(OutOppositeWall))
+	{
+		SetOppositeWall(OutOppositeWall);
+	}
 	
 }
 
@@ -102,5 +109,43 @@ void ACubeWallActor::OnTunnelCollisionOverlapEnd(UPrimitiveComponent* Overlapped
 		MainCharacter->ExitTunnel();
 		DoorComponent->InitDoorAutoClosing();
 	}
+}
+
+
+bool ACubeWallActor::FindOppositeWall(ACubeWallActor*& OutOppositeWall)
+{
+	if (OppositeWall != nullptr)
+		return false;
+
+	ULog::Info("---------FindOppositeWall----------");
+	TArray<UPrimitiveComponent*> OverlappingComponents;
+	TunnelCollision->GetOverlappingComponents(OverlappingComponents);
+
+	for (UPrimitiveComponent* OverlappingComponent : OverlappingComponents)
+	{
+		if (OverlappingComponent->GetName() == TunnelCollision->GetName())
+		{
+			OutOppositeWall = Cast<ACubeWallActor>(OverlappingComponent->GetOwner());
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ACubeWallActor::SetOppositeWall(ACubeWallActor* WallActor)
+{
+	if (OppositeWall != nullptr)
+		return;
+
+	// Set for the current wall actor
+	OppositeWall = WallActor;
+	DoorComponent->OppositeDoor = WallActor->DoorComponent;
+	DoorComponent->HandleComponent->OppositeHandle = WallActor->DoorComponent->HandleComponent;
+
+	// Set for the opposite wall actor
+	WallActor->SetOppositeWall(this);
+
+	ULog::Success("---------SetOppositeWall----------");
 }
 

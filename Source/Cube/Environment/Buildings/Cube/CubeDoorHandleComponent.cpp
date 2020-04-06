@@ -10,7 +10,9 @@ UCubeDoorHandleComponent::UCubeDoorHandleComponent(const FObjectInitializer& Obj
 	LeverLimitPositive = 178.f;
 	LeverLimitNegative = 178.f;
 	LeverTogglePercentage = 0.98f;
+	GripPriority = 1;
 	LeverReturnTypeWhenReleased = EVRInteractibleLeverReturnType::Stay;
+	SetCollisionProfileName(TEXT("BlockAllDynamic"));
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeDoorHandle.SM_CubeDoorHandle'"));
 	if (MeshAsset.Succeeded()) {
@@ -35,11 +37,22 @@ void UCubeDoorHandleComponent::TickGrip_Implementation(UGripMotionControllerComp
 void UCubeDoorHandleComponent::Lock()
 {
 	bLocked = true;
+	SetLeverAngle(179.98f, FVector::ZeroVector);
+	if (IsValid(OppositeHandle))
+	{
+		OppositeHandle->bLocked = true;
+		OppositeHandle->SetLeverAngle(179.98f, FVector::ZeroVector);
+	}
 }
 
 void UCubeDoorHandleComponent::Unlock()
 {
 	bLocked = false;
+
+	if (IsValid(OppositeHandle))
+	{
+		OppositeHandle->bLocked = false;
+	}
 }
 
 void UCubeDoorHandleComponent::ToggleLock()
@@ -56,10 +69,10 @@ void UCubeDoorHandleComponent::ToggleLock()
 void UCubeDoorHandleComponent::ResetProgress()
 {
 	Unlock();
-	SetRelativeRotation(FRotator::ZeroRotator);
+	SetLeverAngle(0.f, FVector::ZeroVector);
 	if (IsValid(OppositeHandle))
 	{
-		OppositeHandle->SetRelativeRotation(FRotator::ZeroRotator);
+		OppositeHandle->SetLeverAngle(0.f, FVector::ZeroVector);
 	}
 
 }

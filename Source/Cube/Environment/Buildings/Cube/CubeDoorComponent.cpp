@@ -15,7 +15,9 @@ UCubeDoorComponent::UCubeDoorComponent(const FObjectInitializer& ObjectInitializ
 	SliderBehaviorWhenReleased = EVRInteractibleSliderDropBehavior::RetainMomentum;
 	bLocked = true;
 	bDenyGripping = true;
-	DoorAutoClosingTime = 15.f;
+	DoorAutoClosingTime = 5.f;
+	GripPriority = 2;
+	SetCollisionProfileName(TEXT("BlockAllDynamic"));
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeDoor.SM_CubeDoor'"));
 	if (MeshAsset.Succeeded()) {
@@ -125,6 +127,7 @@ void UCubeDoorComponent::SyncOppositeDoor()
 	if (IsValid(OppositeDoor))
 	{
 		OppositeDoor->SetSliderProgress(CurrentSliderProgress);
+		OppositeDoor->SetRelativeLocation(GetRelativeLocation());
 	}
 }
 
@@ -132,12 +135,24 @@ void UCubeDoorComponent::Lock()
 {
 	bLocked = true;
 	bDenyGripping = true;
+
+	if (IsValid(OppositeDoor))
+	{
+		OppositeDoor->bLocked = true;
+		OppositeDoor->bDenyGripping = true;
+	}
 }
 
 void UCubeDoorComponent::Unlock()
 {
 	bLocked = false;
 	bDenyGripping = false;
+
+	if (IsValid(OppositeDoor))
+	{
+		OppositeDoor->bLocked = false;
+		OppositeDoor->bDenyGripping = false;
+	}
 }
 
 void UCubeDoorComponent::ToggleLock()
@@ -186,7 +201,9 @@ void UCubeDoorComponent::CancelDoorAutoClosing()
 
 void UCubeDoorComponent::HandleChangeState(bool LeverStatus, EVRInteractibleLeverEventType LeverStatusType, float LeverAngleAtTime)
 {
-	//ULog::Success("------------------HANDLE BLOCK-----------------", LO_Both);
-	HandleComponent->Lock();
-	Unlock();
+	if (LeverStatus)
+	{
+		HandleComponent->Lock();
+		Unlock();
+	}
 }

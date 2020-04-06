@@ -31,10 +31,12 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	GrabSphereRight = CreateDefaultSubobject<USphereComponent>(TEXT("GrabSphereRight"));
 	GrabSphereRight->SetupAttachment(RightMotionController);
 	GrabSphereRight->SetSphereRadius(4.f);
+	// TODO: Prepare collision presets for Sphere
 
 	GrabSphereLeft = CreateDefaultSubobject<USphereComponent>(TEXT("GrabSphereLeft"));
 	GrabSphereLeft->SetupAttachment(LeftMotionController);
 	GrabSphereLeft->SetSphereRadius(4.f);
+	// TODO: Prepare collision presets for Sphere
 
 	bInTunnel = false;
 	bCroaching = false;
@@ -157,6 +159,7 @@ void AMainCharacter::CheckAndHandleClimbing(UPrimitiveComponent* GrabSphere, UGr
 		InitTunnelCroach();
 	}
 
+	InitTunnelCroach();
 	MainCharacterMovementComponent->InitClimbing(CallingMotionController, OverlappingObject);
 }
 
@@ -166,6 +169,7 @@ void AMainCharacter::CheckAndStopClimbing(UGripMotionControllerComponent* Callin
 	if (MainCharacterMovementComponent->bHandClimbing && CallingMotionController == MainCharacterMovementComponent->ClimbingHand)
 	{
 		MainCharacterMovementComponent->StopClimbing();
+		StopTunnelCroach();
 	}
 }
 
@@ -257,16 +261,17 @@ void AMainCharacter::InitTunnelCroach()
 
 	bCroaching = true;
 
-	VRRootReference->SetCapsuleHalfHeightVR(30.f);
+	VRRootReference->SetCapsuleHalfHeightVR(33.f);
 
-	TunnelCroachOffset = VRReplicatedCamera->GetComponentLocation().Z - VRRootReference->GetComponentLocation().Z - 55.f;
+	TunnelCroachOffset = VRReplicatedCamera->GetComponentLocation().Z - VRRootReference->GetComponentLocation().Z - 45.f;
 	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
 	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
+	MainCharacterMovementComponent->MaxWalkSpeed = 80.f;
 }
 
 void AMainCharacter::StopTunnelCroach()
 {
-	if (!bCroaching)
+	if (!bCroaching || bInTunnel || MainCharacterMovementComponent->bHandClimbing)
 		return;
 
 	//ULog::Error("+++++++++++++++++++++++++++++++++StopTunnelCroach++++++++++++++++++++++++++++++++", LO_Both);
@@ -276,5 +281,6 @@ void AMainCharacter::StopTunnelCroach()
 	VRRootReference->SetCapsuleHalfHeightVR(96.f);
 	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
 	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
+	MainCharacterMovementComponent->MaxWalkSpeed = 200.f;
 }
 

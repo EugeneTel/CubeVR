@@ -61,6 +61,10 @@ public:
 	UFUNCTION()
 	virtual void OnTunnelCollisionOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
+	// Check Is the Main Character still in the Tunnel
+	UFUNCTION(BlueprintCallable)
+	bool IsCharacterInTunnel();
+
 	// Door movement route
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cube")
 	USplineComponent* DoorSpline;

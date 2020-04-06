@@ -12,6 +12,7 @@ ACubeWallActor::ACubeWallActor()
 	// Prepare Wall Mesh
 	WallMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WallMesh"));
 	RootComponent = WallMesh;
+	WallMesh->SetCollisionProfileName(TEXT("BlockAll"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> WallMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeWall.SM_CubeWall'"));
 	if (WallMeshAsset.Succeeded()) {
 		WallMesh->SetStaticMesh(WallMeshAsset.Object);
@@ -21,6 +22,7 @@ ACubeWallActor::ACubeWallActor()
 	LadderMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LadderMesh"));
 	LadderMesh->SetupAttachment(GetRootComponent());
 	LadderMesh->ComponentTags.Add(TEXT("climable"));
+	LadderMesh->SetCollisionProfileName(TEXT("BlockAll"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> LadderMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeLadder.SM_CubeLadder'"));
 	if (LadderMeshAsset.Succeeded()) {
 		LadderMesh->SetStaticMesh(LadderMeshAsset.Object);
@@ -31,6 +33,7 @@ ACubeWallActor::ACubeWallActor()
 	TunnelMesh->SetupAttachment(GetRootComponent());
 	TunnelMesh->ComponentTags.Add(TEXT("climable"));
 	TunnelMesh->ComponentTags.Add(TEXT("crouchable"));
+	TunnelMesh->SetCollisionProfileName(TEXT("BlockAll"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> TunnelMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeTunnel.SM_CubeTunnel'"));
 	if (TunnelMeshAsset.Succeeded()) {
 		TunnelMesh->SetStaticMesh(TunnelMeshAsset.Object);
@@ -39,8 +42,9 @@ ACubeWallActor::ACubeWallActor()
 	// Prepare Tunnel Collision
 	TunnelCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("TunnelCollision"));
 	TunnelCollision->SetupAttachment(TunnelMesh);
-	TunnelCollision->SetBoxExtent(FVector(40.f, 40.f, 20.f));
-	TunnelCollision->SetRelativeLocation(FVector(0.f, 0.f, -20.f));
+	TunnelCollision->SetBoxExtent(FVector(40.f, 40.f, 40.f));
+	TunnelCollision->SetRelativeLocation(FVector(0.f, 0.f, -10.f));
+	TunnelCollision->SetCollisionProfileName(TEXT("IgnoreVRTraceOnly"));
 
 	// Prepare Door
 	DoorSpline = CreateDefaultSubobject<USplineComponent>(TEXT("DoorSpline"));
@@ -99,8 +103,10 @@ void ACubeWallActor::OnTunnelCollisionOverlapEnd(UPrimitiveComponent* Overlapped
 	//ULog::Info("------------------------OnTunnelCollisionOverlapEnd------------------------", LO_Both);
 	AMainCharacter* MainCharacter = Cast<AMainCharacter>(OtherActor);
 
-	if (MainCharacter == nullptr)
+	if (MainCharacter == nullptr || IsCharacterInTunnel())
+	{
 		return;
+	}
 
 	bCharacterInTunnel = false;
 
@@ -109,6 +115,24 @@ void ACubeWallActor::OnTunnelCollisionOverlapEnd(UPrimitiveComponent* Overlapped
 		MainCharacter->ExitTunnel();
 		DoorComponent->InitDoorAutoClosing();
 	}
+}
+
+bool ACubeWallActor::IsCharacterInTunnel()
+{
+	TArray<AActor*> OverlappingActors;
+	TunnelCollision->GetOverlappingActors(OverlappingActors);
+
+	for (AActor* OverlappingActor : OverlappingActors)
+	{
+		AMainCharacter* OverlappedMainCharacter = Cast<AMainCharacter>(OverlappingActor);
+
+		if (OverlappedMainCharacter != nullptr)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 

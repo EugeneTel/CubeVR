@@ -43,7 +43,7 @@ ACubeWallActor::ACubeWallActor()
 	TunnelCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("TunnelCollision"));
 	TunnelCollision->SetupAttachment(TunnelMesh);
 	TunnelCollision->SetBoxExtent(FVector(40.f, 40.f, 40.f));
-	TunnelCollision->SetRelativeLocation(FVector(0.f, 0.f, -10.f));
+	TunnelCollision->SetRelativeLocation(FVector(0.f, 0.f, -15.f));
 	TunnelCollision->SetCollisionProfileName(TEXT("IgnoreVRTraceOnly"));
 
 	// Prepare Door
@@ -63,14 +63,6 @@ void ACubeWallActor::BeginPlay()
 
 	TunnelCollision->OnComponentBeginOverlap.AddDynamic(this, &ACubeWallActor::OnTunnelCollisionOverlapBegin);
 	TunnelCollision->OnComponentEndOverlap.AddDynamic(this, &ACubeWallActor::OnTunnelCollisionOverlapEnd);
-
-	// Try to set Opposite Wall
-	ACubeWallActor* OutOppositeWall;
-	if (FindOppositeWall(OutOppositeWall))
-	{
-		SetOppositeWall(OutOppositeWall);
-	}
-	
 }
 
 // Called every frame
@@ -91,6 +83,9 @@ void ACubeWallActor::OnTunnelCollisionOverlapBegin(UPrimitiveComponent* Overlapp
 	MainCharacter->EnterTunnel();
 	bCharacterInTunnel = true;
 	DoorComponent->CancelDoorAutoClosing();
+
+	// Set Cube As Investigated
+	Manager->Investigate();
 
 	if (OppositeWall != nullptr && IsValid(OppositeWall->DoorComponent))
 	{
@@ -135,13 +130,11 @@ bool ACubeWallActor::IsCharacterInTunnel()
 	return false;
 }
 
-
-bool ACubeWallActor::FindOppositeWall(ACubeWallActor*& OutOppositeWall)
+bool ACubeWallActor::FindOppositeWall()
 {
 	if (OppositeWall != nullptr)
 		return false;
 
-	ULog::Info("---------FindOppositeWall----------");
 	TArray<UPrimitiveComponent*> OverlappingComponents;
 	TunnelCollision->GetOverlappingComponents(OverlappingComponents);
 
@@ -149,7 +142,8 @@ bool ACubeWallActor::FindOppositeWall(ACubeWallActor*& OutOppositeWall)
 	{
 		if (OverlappingComponent->GetName() == TunnelCollision->GetName())
 		{
-			OutOppositeWall = Cast<ACubeWallActor>(OverlappingComponent->GetOwner());
+			SetOppositeWall(Cast<ACubeWallActor>(OverlappingComponent->GetOwner()));
+
 			return true;
 		}
 	}
@@ -169,7 +163,5 @@ void ACubeWallActor::SetOppositeWall(ACubeWallActor* WallActor)
 
 	// Set for the opposite wall actor
 	WallActor->SetOppositeWall(this);
-
-	ULog::Success("---------SetOppositeWall----------");
 }
 

@@ -9,6 +9,7 @@
 #include "CubeLadderComponent.h"
 #include "Components/BoxComponent.h"
 #include "Cube/Characters/MainCharacter.h"
+#include "Cube/Environment/Buildings/Cube/CubeManagerActor.h"
 
 #include "CubeWallActor.generated.h"
 
@@ -29,12 +30,14 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	class ACubeManagerActor* Manager;
+
 	// Opposite Wall Actor
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Cube")
 	ACubeWallActor* OppositeWall;
 
 	UFUNCTION(BlueprintCallable)
-	bool FindOppositeWall(ACubeWallActor*& OutOppositeWall);
+	bool FindOppositeWall();
 
 	UFUNCTION(BlueprintCallable)
 	void SetOppositeWall(ACubeWallActor* WallActor);

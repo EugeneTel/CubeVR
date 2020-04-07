@@ -7,8 +7,9 @@
 ACubeManagerActor::ACubeManagerActor()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-	bWallsSpawned = true;
+	PrimaryActorTick.bCanEverTick = false;
+	bWallsSpawned = false;
+	bInvestigated = false;
 
 	SpawnWallsTransform.Add(FTransform(FRotator::ZeroRotator, FVector::ZeroVector));
 	SpawnWallsTransform.Add(FTransform(FRotator(-90.0f , 174.28f, -264.28f), FVector(0.f, 200.f, 200.f)));
@@ -22,7 +23,8 @@ ACubeManagerActor::ACubeManagerActor()
 void ACubeManagerActor::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	SpawnCubeWalls();
 }
 
 // Called every frame
@@ -35,8 +37,22 @@ void ACubeManagerActor::Tick(float DeltaTime)
 void ACubeManagerActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+}
 
-	SpawnCubeWalls();
+void ACubeManagerActor::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	LevelScript = Cast<ACubeLevelScriptActor>(GetWorld()->GetLevelScriptActor());
+}
+
+void ACubeManagerActor::Investigate()
+{
+	if (bInvestigated)
+		return;
+
+	bInvestigated = true;
+	LevelScript->CubeInvestigated(CubeId);
 }
 
 void ACubeManagerActor::SpawnCubeWalls()
@@ -44,13 +60,26 @@ void ACubeManagerActor::SpawnCubeWalls()
 	if (WallToSpawn == nullptr || bWallsSpawned)
 		return;
 
+	if (SpawnedWalls.Num() > 0)
+	{
+		SpawnedWalls.Empty();
+	}
+
 	FActorSpawnParameters SpawnParams;
 
 	for (FTransform WallTransform : SpawnWallsTransform)
 	{
-		SpawnedWalls.Add(GetWorld()->SpawnActor<ACubeWallActor>(WallToSpawn, GetActorLocation() + WallTransform.GetLocation(), GetActorRotation() + WallTransform.GetRotation().Rotator(), SpawnParams));
+		ACubeWallActor* SpawnedWall = GetWorld()->SpawnActor<ACubeWallActor>(
+			WallToSpawn, 
+			GetActorLocation() + WallTransform.GetLocation(), 
+			GetActorRotation() + WallTransform.GetRotation().Rotator(), 
+			SpawnParams
+		);
+		SpawnedWall->Manager = this;
+		SpawnedWall->FindOppositeWall();
+
+		SpawnedWalls.Add(SpawnedWall);
 	}
 
 	bWallsSpawned = true;
 }
-

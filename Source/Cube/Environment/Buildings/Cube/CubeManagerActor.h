@@ -6,8 +6,23 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "CubeWallActor.h"
+#include "Cube/Levels/CubeLevelScriptActor.h"
 
 #include "CubeManagerActor.generated.h"
+
+USTRUCT()
+struct CUBE_API FCubeData
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY()
+	UMaterialInterface* GlassMaterial;
+
+	UPROPERTY()
+	FColor LightColor;
+};
 
 UCLASS()
 class CUBE_API ACubeManagerActor : public AActor
@@ -28,8 +43,28 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
+	// Cache components
+	virtual void PostInitializeComponents() override;
+
+	UPROPERTY()
+	class ACubeLevelScriptActor* LevelScript;
+
+	// If the cube investigated by player
+	UPROPERTY()
+	bool bInvestigated;
+
+	// Called when player investigate the cube
+	UFUNCTION()
+	void Investigate();
+
+	UPROPERTY()
+	FIntVector CubeId;
+
+	UPROPERTY()
+	FCubeData CubeData;
+
 	UPROPERTY(VisibleAnywhere, Category = "Spawning")
-	TArray<ACubeWallActor*> SpawnedWalls;
+	TArray<class ACubeWallActor*> SpawnedWalls;
 
 	UPROPERTY(VisibleAnywhere, Category = "Spawning")
 	TArray<FTransform> SpawnWallsTransform;

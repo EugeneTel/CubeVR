@@ -54,6 +54,35 @@ ACubeWallActor::ACubeWallActor()
 	DoorComponent = CreateDefaultSubobject<UCubeDoorComponent>(TEXT("DoorComponent"));
 	DoorComponent->SetupAttachment(RootComponent);
 	DoorComponent->SplineComponentToFollow = DoorSpline;
+
+	// Prepare Glasses
+	GlassInstMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("GlassInstMesh"));
+	GlassInstMesh->SetupAttachment(RootComponent);
+	GlassInstMesh->AddInstance(FTransform(FVector(-131.3f, 0.f, 0.f)));
+	GlassInstMesh->AddInstance(FTransform(FVector(131.3f, 0.f, 0.f)));
+	GlassInstMesh->AddInstance(FTransform(FVector::ZeroVector));
+	GlassInstMesh->AddInstance(FTransform(FVector(-131.3f, 131.3f, 0.f)));
+	GlassInstMesh->AddInstance(FTransform(FVector(131.3f, 131.3f, 0.f)));
+	GlassInstMesh->AddInstance(FTransform(FVector(-131.3f, 262.6f, 0.f)));
+	GlassInstMesh->AddInstance(FTransform(FVector(0.f, 262.6f, 0.f)));
+	GlassInstMesh->AddInstance(FTransform(FVector(131.3f, 262.6f, 0.f)));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> GlassMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeGlass.SM_CubeGlass'"));
+	if (GlassMeshAsset.Succeeded()) {
+		GlassInstMesh->SetStaticMesh(GlassMeshAsset.Object);
+	}
+
+	// Prepare Light
+	RectLight = CreateDefaultSubobject<URectLightComponent>(TEXT("RectLight"));
+	RectLight->SetupAttachment(RootComponent);
+	RectLight->Intensity = 5000.f;
+	RectLight->AttenuationRadius = 300.f;
+	RectLight->SourceHeight = 370.f;
+	RectLight->SourceWidth = 370.f;
+	RectLight->CastShadows = false;
+	RectLight->IndirectLightingIntensity = 0.f;
+	RectLight->SetRelativeLocation(FVector::ZeroVector);
+	RectLight->SetRelativeRotation(FRotator(90.f, 180.f, 180.f));
+
 }
 
 // Called when the game starts or when spawned
@@ -128,6 +157,14 @@ bool ACubeWallActor::IsCharacterInTunnel()
 	}
 
 	return false;
+}
+
+void ACubeWallActor::SetGlassMaterial(UMaterialInterface* NewMaterial)
+{
+	for (int i = 0; i < 8; i++)
+	{
+		GlassInstMesh->SetMaterial(i, NewMaterial);
+	}
 }
 
 bool ACubeWallActor::FindOppositeWall()

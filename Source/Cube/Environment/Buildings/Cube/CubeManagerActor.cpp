@@ -66,6 +66,9 @@ void ACubeManagerActor::SpawnCubeWalls()
 	}
 
 	FActorSpawnParameters SpawnParams;
+	
+	int32 MaterialIndex = FMath::RandRange(0, GlassMaterialList.Num() - 1);
+	UMaterialInterface* GlassMaterial = GlassMaterialList[MaterialIndex];
 
 	for (FTransform WallTransform : SpawnWallsTransform)
 	{
@@ -75,6 +78,7 @@ void ACubeManagerActor::SpawnCubeWalls()
 			GetActorRotation() + WallTransform.GetRotation().Rotator(), 
 			SpawnParams
 		);
+		SpawnedWall->SetGlassMaterial(GlassMaterial);
 		SpawnedWall->Manager = this;
 		SpawnedWall->FindOppositeWall();
 

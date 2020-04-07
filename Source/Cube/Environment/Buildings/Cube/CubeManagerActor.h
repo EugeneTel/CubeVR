@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "CubeWallActor.h"
 #include "Cube/Levels/CubeLevelScriptActor.h"
+#include "Math/UnrealMathUtility.h"
 
 #include "CubeManagerActor.generated.h"
 
@@ -22,6 +23,17 @@ public:
 
 	UPROPERTY()
 	FColor LightColor;
+};
+
+UENUM()
+enum class ECubeColor : uint8
+{
+	ECC_White,
+	ECC_Blue,
+	ECC_Green,
+	ECC_Red,
+
+	ECC_MAX
 };
 
 UCLASS()
@@ -62,6 +74,12 @@ public:
 
 	UPROPERTY()
 	FCubeData CubeData;
+
+	UPROPERTY()
+	ECubeColor CubeColor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
+	TArray<UMaterialInterface*> GlassMaterialList;
 
 	UPROPERTY(VisibleAnywhere, Category = "Spawning")
 	TArray<class ACubeWallActor*> SpawnedWalls;

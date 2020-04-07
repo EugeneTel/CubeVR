@@ -8,6 +8,7 @@
 #include "CubeDoorComponent.h"
 #include "CubeLadderComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/RectLightComponent.h"
 #include "Cube/Characters/MainCharacter.h"
 #include "Cube/Environment/Buildings/Cube/CubeManagerActor.h"
 
@@ -76,8 +77,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
 	UCubeDoorComponent* DoorComponent;
 
+	// All Glasses in the Wall
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
+	UInstancedStaticMeshComponent* GlassInstMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
+	URectLightComponent* RectLight;
+
 	// Is Character In the current Wall Tunnel
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Cube")
 	bool bCharacterInTunnel;
+
+	UFUNCTION(BlueprintCallable)
+	void SetGlassMaterial(UMaterialInterface* NewMaterial);
 
 };

@@ -21,7 +21,7 @@ ACubeLevelScriptActor::ACubeLevelScriptActor()
 
 void ACubeLevelScriptActor::BeginPlay()
 {
-	ULog::Success("-------------------------BeginPlay--------------------------", LO_Both);
+	//ULog::Success("-------------------------BeginPlay--------------------------", LO_Both);
 
 	CreateStartCubes();
 }
@@ -46,13 +46,13 @@ void ACubeLevelScriptActor::SpawnCube(FIntVector CubeId)
 
 	CubeList.Add(CubeId, NewCubeManager);
 
-	ULog::Success("-------------------------Cube Created--------------------------", LO_Both);
+	//ULog::Success("-------------------------Cube Created--------------------------", LO_Both);
 	ULog::Vector(NewCubeLocation, LO_Both);
 }
 
 void ACubeLevelScriptActor::CubeInvestigated(FIntVector CubeId)
 {
-	ULog::Success("-------------------------Cube Investigated--------------------------", LO_Both);
+	//ULog::Success("-------------------------Cube Investigated--------------------------", LO_Both);
 
 	// If cube investigated - spawn additional cubes around the current cube (if not spawned yet)
 	for (FIntVector SpawnCubeDiff : SpawnCubeList)

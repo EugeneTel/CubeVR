@@ -8,6 +8,7 @@
 #include "CubeWallActor.h"
 #include "Cube/Levels/CubeLevelScriptActor.h"
 #include "Math/UnrealMathUtility.h"
+#include "Cube/Environment/Traps/Cube/CubeBaseTrapActor.h"
 
 #include "CubeManagerActor.generated.h"
 
@@ -93,7 +94,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Spawning")
 	TSubclassOf<ACubeWallActor> WallToSpawn;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Spawning")
 	void SpawnCubeWalls();
+
+	// Spawned Trap in the Cube
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spawning")
+	ACubeBaseTrapActor* Trap;
+
+	// Trap List for spawning
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
+	TArray<TSubclassOf<ACubeBaseTrapActor>> TrapList;
+
+	// Spawn a Trap for the Cube
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	void SpawnTrap();
 
 };

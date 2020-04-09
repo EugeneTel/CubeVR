@@ -87,3 +87,24 @@ void ACubeManagerActor::SpawnCubeWalls()
 
 	bWallsSpawned = true;
 }
+
+void ACubeManagerActor::SpawnTrap()
+{
+
+	// Spawn a Trap if needed
+	if (CubeId == FIntVector::ZeroValue || TrapList.Num() == 0 || FMath::RandRange(0, 2) == 0)
+		return;
+
+	ULog::Success("TRAP GENERATED");
+
+	int32 TrapIndex = FMath::RandRange(0, TrapList.Num() - 1);
+
+	FActorSpawnParameters SpawnParams;
+
+	Trap = GetWorld()->SpawnActor<ACubeBaseTrapActor>(
+		TrapList[TrapIndex],
+		GetActorLocation(),
+		GetActorRotation(),
+		SpawnParams
+	);
+}

@@ -43,11 +43,12 @@ void ACubeLevelScriptActor::SpawnCube(FIntVector CubeId)
 
 	ACubeManagerActor* NewCubeManager = GetWorld()->SpawnActor<ACubeManagerActor>(CubeManagerToSpawn, NewCubeLocation, FRotator::ZeroRotator, SpawnParams);
 	NewCubeManager->CubeId = CubeId;
+	NewCubeManager->SpawnTrap();
 
 	CubeList.Add(CubeId, NewCubeManager);
 
 	//ULog::Success("-------------------------Cube Created--------------------------", LO_Both);
-	ULog::Vector(NewCubeLocation, LO_Both);
+	//ULog::Vector(NewCubeLocation, LO_Both);
 }
 
 void ACubeLevelScriptActor::CubeInvestigated(FIntVector CubeId)

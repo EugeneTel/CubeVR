@@ -114,7 +114,10 @@ void ACubeWallActor::OnTunnelCollisionOverlapBegin(UPrimitiveComponent* Overlapp
 	DoorComponent->CancelDoorAutoClosing();
 
 	// Set Cube As Investigated
-	Manager->Investigate();
+	if (Manager != nullptr)
+	{
+		Manager->Investigate();
+	}
 
 	if (OppositeWall != nullptr && IsValid(OppositeWall->DoorComponent))
 	{

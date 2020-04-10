@@ -23,11 +23,15 @@ class CUBE_API ICubeTrapInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 
-	// Check is the Trap Active
+	// Check is a Trap Active
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Trap Interface")
 	bool IsActive();
 
-	// Activate the Trap
+	// Interact with a Trap
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Trap Interface")
-	void Activate();
+	void Interact();
+
+	// Deactivate a Trap
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Trap Interface")
+	void Deactivate();
 };

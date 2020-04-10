@@ -31,7 +31,5 @@ bool ACubeBaseTrapActor::IsActive_Implementation()
 	return bActive;
 }
 
-void ACubeBaseTrapActor::Activate_Implementation()
-{
-	return;
-}
+void ACubeBaseTrapActor::Interact_Implementation() {}
+void ACubeBaseTrapActor::Deactivate_Implementation() {}

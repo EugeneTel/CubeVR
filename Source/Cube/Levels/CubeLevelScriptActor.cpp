@@ -43,12 +43,14 @@ void ACubeLevelScriptActor::SpawnCube(FIntVector CubeId)
 
 	ACubeManagerActor* NewCubeManager = GetWorld()->SpawnActor<ACubeManagerActor>(CubeManagerToSpawn, NewCubeLocation, FRotator::ZeroRotator, SpawnParams);
 	NewCubeManager->CubeId = CubeId;
-	NewCubeManager->SpawnTrap();
 
 	CubeList.Add(CubeId, NewCubeManager);
 
-	//ULog::Success("-------------------------Cube Created--------------------------", LO_Both);
-	//ULog::Vector(NewCubeLocation, LO_Both);
+	// Spawn a Trap if needed
+	if (CubeId != FIntVector::ZeroValue && FMath::RandRange(0, 2) > 0)
+	{
+		NewCubeManager->SpawnTrap();
+	}
 }
 
 void ACubeLevelScriptActor::CubeInvestigated(FIntVector CubeId)
@@ -59,6 +61,7 @@ void ACubeLevelScriptActor::CubeInvestigated(FIntVector CubeId)
 	for (FIntVector SpawnCubeDiff : SpawnCubeList)
 	{
 		FIntVector NewCubeId = CubeId + SpawnCubeDiff;
+
 		SpawnCube(NewCubeId);
 	}
 

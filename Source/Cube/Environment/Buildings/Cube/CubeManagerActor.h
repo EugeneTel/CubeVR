@@ -94,8 +94,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Spawning")
 	TSubclassOf<ACubeWallActor> WallToSpawn;
 
+	// Spawn All cube wall actors
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Spawning")
 	void SpawnCubeWalls();
+
+	// Destroy Spawned wall actors
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Spawning")
+	void DestroyCubeWalls();
 
 	// Spawned Trap in the Cube
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spawning")
@@ -106,7 +111,10 @@ public:
 	TArray<TSubclassOf<ACubeBaseTrapActor>> TrapList;
 
 	// Spawn a Trap for the Cube
-	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Spawning")
 	void SpawnTrap();
 
+	// Destroy spawned trap
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Spawning")
+	void DestroyTrap();
 };

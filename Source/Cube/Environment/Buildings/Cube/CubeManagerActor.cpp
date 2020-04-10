@@ -88,11 +88,24 @@ void ACubeManagerActor::SpawnCubeWalls()
 	bWallsSpawned = true;
 }
 
+void ACubeManagerActor::DestroyCubeWalls()
+{
+	for (auto SpawnedWall : SpawnedWalls)
+	{
+		if (SpawnedWall != nullptr)
+		{
+			SpawnedWall->Destroy();
+		}
+	}
+
+	SpawnedWalls.Empty();
+}
+
 void ACubeManagerActor::SpawnTrap()
 {
 
 	// Spawn a Trap if needed
-	if (CubeId == FIntVector::ZeroValue || TrapList.Num() == 0 || FMath::RandRange(0, 2) == 0)
+	if (TrapList.Num() == 0)
 		return;
 
 	ULog::Success("TRAP GENERATED");
@@ -107,4 +120,13 @@ void ACubeManagerActor::SpawnTrap()
 		GetActorRotation(),
 		SpawnParams
 	);
+}
+
+void ACubeManagerActor::DestroyTrap()
+{
+	if (Trap != nullptr)
+	{
+		Trap->Destroy();
+		Trap = nullptr;
+	}
 }

@@ -8,7 +8,7 @@
 
 #include "CubeBaseTrapActor.generated.h"
 
-UCLASS()
+UCLASS(Abstract, Blueprintable)
 class CUBE_API ACubeBaseTrapActor : public AActor, public ICubeTrapInterface
 {
 	GENERATED_BODY()
@@ -28,12 +28,16 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	bool bActive;
 
-	// Check is the Trap Active
+	// Check is a Trap Active
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Trap Interface")
 	bool IsActive();
 
-	// Activate the Trap
+	// Interact a Trap
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Trap Interface")
-	void Activate();
+	void Interact();
+
+	// Deactivate a Trap
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Trap Interface")
+	void Deactivate();
 
 };

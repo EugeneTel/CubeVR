@@ -175,6 +175,8 @@ bool ACubeWallActor::FindOppositeWall()
 	if (OppositeWall != nullptr)
 		return false;
 
+	ULog::Success("FindOppositeWall");
+
 	TArray<UPrimitiveComponent*> OverlappingComponents;
 	TunnelCollision->GetOverlappingComponents(OverlappingComponents);
 
@@ -195,6 +197,8 @@ void ACubeWallActor::SetOppositeWall(ACubeWallActor* WallActor)
 {
 	if (OppositeWall != nullptr)
 		return;
+
+	ULog::Success("SetOppositeWall");
 
 	// Set for the current wall actor
 	OppositeWall = WallActor;

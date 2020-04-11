@@ -4,6 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "VRCharacter.h"
+#include "MainCharacterMovementComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/InputComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
+#include "Components/PostProcessComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/World.h"
+
+
+#include "Log.h"
 #include "MainCharacter.generated.h"
 
 UENUM(BlueprintType)
@@ -69,6 +81,30 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
 	class USkeletalMeshComponent* HandMeshRight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPostProcessComponent* PostProcessComponent;
+
+	UPROPERTY(EditAnywhere)
+	UMaterialInterface* FadeMaterial;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* FadeMaterialInstance;
+
+	UPROPERTY()
+	float FadeProgress;
+
+	UPROPERTY()
+	bool bFading;
+
+	UPROPERTY()
+	FTimerHandle FadeTimerHandle;
+
+	UFUNCTION()
+	void FadeInProgress();
+
+	UFUNCTION()
+	void FadeOutProgress();
 
 	UFUNCTION(BlueprintCallable)
 	bool CheckAndHandleGripAnimations();
@@ -142,5 +178,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void StopTunnelCroach();
+
+	UFUNCTION(BlueprintCallable)
+	void Die();
 
 };

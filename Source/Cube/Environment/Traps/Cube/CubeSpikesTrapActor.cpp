@@ -87,6 +87,13 @@ void ACubeSpikesTrapActor::OnColliderOverlapBegin(UPrimitiveComponent* Overlappe
 	{
 		Interact_Implementation();
 	}
+
+	AMainCharacter* MainCharacter = Cast<AMainCharacter>(OtherActor);
+
+	if (MainCharacter != nullptr)
+	{
+		MainCharacter->Die();
+	}
 }
 
 void ACubeSpikesTrapActor::SpawnSpikes()

@@ -2,15 +2,6 @@
 
 
 #include "MainCharacter.h"
-#include "MainCharacterMovementComponent.h"
-#include "Components/SphereComponent.h"
-#include "Components/InputComponent.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
-
-
-#include "Log.h"
 
 // Sets default values
 AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
@@ -38,6 +29,9 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	GrabSphereLeft->SetSphereRadius(4.f);
 	// TODO: Prepare collision presets for Sphere
 
+	PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
+	PostProcessComponent->SetupAttachment(GetRootComponent());
+
 	bInTunnel = false;
 	bCroaching = false;
 
@@ -50,6 +44,17 @@ void AMainCharacter::BeginPlay()
 
 	// Set Tracking to Floor. Without it in Oculus Rift is under floor.
 	UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+
+	if (FadeMaterial != nullptr)
+	{
+		FadeMaterialInstance = UMaterialInstanceDynamic::Create(FadeMaterial, this);
+		PostProcessComponent->AddOrUpdateBlendable(FadeMaterialInstance);
+		bFading = true;
+		FadeProgress = 0.f;
+		FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
+		GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeOutProgress, 0.01f, true, 2.0f);
+	}
+
 }
 
 // SetupPlayerInputComponent
@@ -138,6 +143,43 @@ UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveCompo
 	}
 
 	return nullptr;
+}
+
+/**
+ * Fade Logic
+ */
+
+void AMainCharacter::FadeOutProgress()
+{
+	if (FadeMaterialInstance == nullptr)
+		return;
+
+	FadeProgress += 0.003f;
+	FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
+
+	if (FadeProgress >= 1.f)
+	{
+		bFading = false;
+		GetWorldTimerManager().ClearTimer(FadeTimerHandle);
+	}
+}
+
+void AMainCharacter::FadeInProgress()
+{
+	if (FadeMaterialInstance == nullptr)
+		return;
+
+	ULog::Success("-------------FadeInProgress--------------");
+
+	FadeProgress -= 0.003f;
+	FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
+
+	if (FadeProgress <= 0.f)
+	{
+		bFading = false;
+		GetWorldTimerManager().ClearTimer(FadeTimerHandle);
+		FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), 0.f);
+	}
 }
 
 /**
@@ -282,5 +324,18 @@ void AMainCharacter::StopTunnelCroach()
 	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
 	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
 	MainCharacterMovementComponent->MaxWalkSpeed = 200.f;
+}
+
+void AMainCharacter::Die()
+{
+	//MainCharacterMovementComponent->DisableMovement();
+
+	if (FadeMaterialInstance == nullptr)
+		return;
+
+	bFading = true;
+	FadeProgress = 1.f;
+	FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
+	GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeInProgress, 0.01f, true, 1.0f);
 }
 

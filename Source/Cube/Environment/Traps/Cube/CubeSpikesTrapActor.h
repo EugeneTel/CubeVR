@@ -7,6 +7,8 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/BoxComponent.h"
+#include "Engine/World.h"
+#include "Cube/Characters/MainCharacter.h"
 
 #include "Log.h"
 #include "CubeSpikesTrapActor.generated.h"

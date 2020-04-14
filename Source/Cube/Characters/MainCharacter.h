@@ -13,6 +13,8 @@
 #include "Components/PostProcessComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
+#include "Cube/Levels/CubeLevelScriptActor.h"
 
 
 #include "Log.h"
@@ -64,6 +66,9 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable)
 	UPrimitiveComponent* GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag = "");
+
+	UPROPERTY()
+	class ACubeLevelScriptActor* LevelScript;
 
 	/**
 	* Hands properties and methods
@@ -178,6 +183,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void StopTunnelCroach();
+
+	UPROPERTY()
+	bool bDead;
 
 	UFUNCTION(BlueprintCallable)
 	void Die();

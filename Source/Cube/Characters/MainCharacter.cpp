@@ -34,6 +34,7 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 
 	bInTunnel = false;
 	bCroaching = false;
+	bDead = false;
 
 }
 
@@ -52,7 +53,7 @@ void AMainCharacter::BeginPlay()
 		bFading = true;
 		FadeProgress = 0.f;
 		FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
-		GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeOutProgress, 0.01f, true, 2.0f);
+		GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeOutProgress, 0.01f, true, 0.5f);
 	}
 
 }
@@ -82,6 +83,7 @@ void AMainCharacter::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
 	MainCharacterMovementComponent = Cast<UMainCharacterMovementComponent>(Super::GetMovementComponent());
+	LevelScript = Cast<ACubeLevelScriptActor>(GetWorld()->GetLevelScriptActor());
 }
 
 // OnClimbingSteppedUp
@@ -154,7 +156,7 @@ void AMainCharacter::FadeOutProgress()
 	if (FadeMaterialInstance == nullptr)
 		return;
 
-	FadeProgress += 0.003f;
+	FadeProgress += 0.01f;
 	FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
 
 	if (FadeProgress >= 1.f)
@@ -168,8 +170,6 @@ void AMainCharacter::FadeInProgress()
 {
 	if (FadeMaterialInstance == nullptr)
 		return;
-
-	ULog::Success("-------------FadeInProgress--------------");
 
 	FadeProgress -= 0.003f;
 	FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
@@ -328,14 +328,24 @@ void AMainCharacter::StopTunnelCroach()
 
 void AMainCharacter::Die()
 {
-	//MainCharacterMovementComponent->DisableMovement();
-
-	if (FadeMaterialInstance == nullptr)
+	if (bDead)
 		return;
 
-	bFading = true;
-	FadeProgress = 1.f;
-	FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
-	GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeInProgress, 0.01f, true, 1.0f);
+	bDead = true;
+	MainCharacterMovementComponent->DisableMovement();
+
+	// Set Reload level Timer
+	FTimerHandle ReloadTimerHandle;
+	GetWorldTimerManager().SetTimer(ReloadTimerHandle, LevelScript, &ACubeLevelScriptActor::ReloadLevel, 3.f, false);
+
+	if (FadeMaterialInstance != nullptr)
+	{
+		bFading = true;
+		FadeProgress = 1.f;
+		FadeMaterialInstance->SetScalarParameterValue(TEXT("Radius"), FadeProgress);
+
+		// Set Fade Out Timer
+		GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeInProgress, 0.01f, true, 1.0f);
+	}
 }
 

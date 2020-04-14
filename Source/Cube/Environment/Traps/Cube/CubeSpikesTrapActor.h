@@ -9,6 +9,7 @@
 #include "Components/BoxComponent.h"
 #include "Engine/World.h"
 #include "Cube/Characters/MainCharacter.h"
+#include "Kismet/GameplayStatics.h"
 
 #include "Log.h"
 #include "CubeSpikesTrapActor.generated.h"
@@ -38,18 +39,24 @@ public:
 	virtual void Deactivate_Implementation() override;
 
 	UFUNCTION()
-	virtual void OnColliderOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnColliderOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	UFUNCTION()
+	void OnSpikesOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	// Spawn all spikes for the trap
 	UFUNCTION(BlueprintCallable)
 	void SpawnSpikes();
 
+	// Spawn a Instance Static Mesh
 	UFUNCTION(BlueprintCallable)
 	void SpawnInstMesh(FName MeshName, FTransform MeshTransform);
 
+	// Root component for all Instanced Meshes
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USceneComponent* InstMeshRootComponent;
 
+	// Trap collider for activation
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	UBoxComponent* Collider;
 
@@ -66,11 +73,15 @@ public:
 
 	// Progress of Showing Spikes
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	float ActivationProgress;
+	float Progress;
+
+	// TimerHandle for activation/deactivation progress
+	UPROPERTY()
+	FTimerHandle ProgressTimerHandle;
 
 	// When Active starts ticking and increase showing progress
 	UFUNCTION(BlueprintCallable)
-	void ActivationTick(float DeltaTime);
+	void ActivationProgress();
 
 	// Indicates deactivation process
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
@@ -78,5 +89,8 @@ public:
 
 	// When not active starts ticking and hides spikes
 	UFUNCTION(BlueprintCallable)
-	void DeactivationTick(float DeltaTime);
+	void DeactivationProgress();
+
+	UFUNCTION(BlueprintCallable)
+	void CheckCharacterHit();
 };

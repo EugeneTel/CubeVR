@@ -7,6 +7,9 @@
 #include "Math/IntVector.h"
 #include "Cube/Environment/Buildings/Cube/CubeManagerActor.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/GameMode.h"
+#include "TimerManager.h"
 
 
 #include "Log.h"
@@ -26,9 +29,11 @@ public:
 
 	virtual void BeginPlay() override;
 
-	UPROPERTY(EditAnywhere, Category = "Spawn")
+	// Cube manager asset for spawning
+	UPROPERTY(EditAnywhere)
 	TSubclassOf<class ACubeManagerActor> CubeManagerToSpawn;
 
+	// Coordinates of starting cube
 	UPROPERTY()
 	FIntVector StartCube;
 
@@ -36,21 +41,28 @@ public:
 	UPROPERTY()
 	TArray<FIntVector> SpawnCubeList;
 
+	// Player starts in cube with this coordinates
 	UPROPERTY()
 	FIntVector PlayerStartCubeId;
 
+	// Spawned Cubes List
 	UPROPERTY()
 	TMap<FIntVector, class ACubeManagerActor*> CubeList;
 
-	UFUNCTION()
+	// Create the start cube and nearest cubes around it
+	UFUNCTION(BlueprintCallable)
 	void CreateStartCubes();
 
-	UFUNCTION()
+	// Spawn cube manager and all cube assets
+	UFUNCTION(BlueprintCallable)
 	void SpawnCube(FIntVector CubeId);
 
-	UFUNCTION()
+	// Set cube as investigated and spawn near cubes
+	UFUNCTION(BlueprintCallable)
 	void CubeInvestigated(FIntVector CubeId);
 
-
+	// Reload current Level
+	UFUNCTION(BlueprintCallable)
+	void ReloadLevel();
 	
 };

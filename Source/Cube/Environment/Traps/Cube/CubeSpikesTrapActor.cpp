@@ -8,7 +8,7 @@ ACubeSpikesTrapActor::ACubeSpikesTrapActor()
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	ActivationProgress = 0.f;
+	Progress = 0.f;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
@@ -50,35 +50,31 @@ void ACubeSpikesTrapActor::BeginPlay()
 
 	InstMeshRootComponent->SetHiddenInGame(true, true);
 
+	for (auto InstMesh : InstMeshList)
+	{
+		InstMesh->SetRelativeScale3D(FVector(1.f, 1.f, 0.f));
+	}
+
 	Collider->OnComponentBeginOverlap.AddDynamic(this, &ACubeSpikesTrapActor::OnColliderOverlapBegin);
 }
 
 void ACubeSpikesTrapActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	if (IsActive())
-	{
-		ActivationTick(DeltaTime);
-	}
-
-	if (bDeactivate)
-	{
-		DeactivationTick(DeltaTime);
-	}
 }
 
 void ACubeSpikesTrapActor::Interact_Implementation()
 {
-
 	InstMeshRootComponent->SetHiddenInGame(false, true);
 
-	bActive = true;
+	// Start Spikes Activation Progress
+	GetWorldTimerManager().SetTimer(ProgressTimerHandle, this, &ACubeSpikesTrapActor::ActivationProgress, 0.01f, true, 1.f);
 }
 
 void ACubeSpikesTrapActor::Deactivate_Implementation()
 {
-	bDeactivate = true;
+	// Start Spikes Activation Progress
+	GetWorldTimerManager().SetTimer(ProgressTimerHandle, this, &ACubeSpikesTrapActor::DeactivationProgress, 0.01f, true, 3.f);
 }
 
 void ACubeSpikesTrapActor::OnColliderOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -87,12 +83,16 @@ void ACubeSpikesTrapActor::OnColliderOverlapBegin(UPrimitiveComponent* Overlappe
 	{
 		Interact_Implementation();
 	}
+}
 
+void ACubeSpikesTrapActor::OnSpikesOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
 	AMainCharacter* MainCharacter = Cast<AMainCharacter>(OtherActor);
 
 	if (MainCharacter != nullptr)
 	{
-		MainCharacter->Die();
+		FTimerHandle DeathTimerHandle;
+		GetWorldTimerManager().SetTimer(DeathTimerHandle, MainCharacter, &AMainCharacter::Die, 1.f, false, 1.f);
 	}
 }
 
@@ -113,7 +113,13 @@ void ACubeSpikesTrapActor::SpawnInstMesh(FName MeshName, FTransform MeshTransfor
 	UInstancedStaticMeshComponent* NewInstMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(MeshName);
 	NewInstMesh->SetupAttachment(InstMeshRootComponent);
 	NewInstMesh->SetRelativeTransform(MeshTransform);
-	NewInstMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//NewInstMesh->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+	NewInstMesh->SetCollisionResponseToAllChannels(ECR_Overlap);
+	NewInstMesh->SetCollisionProfileName(TEXT("OverlapAll"));
+	//NewInstMesh->SetRelativeScale3D(FVector(1.f, 1.f, 0.f));
+
+	NewInstMesh->OnComponentBeginOverlap.AddDynamic(this, &ACubeSpikesTrapActor::OnSpikesOverlapBegin);
+
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Traps/Cube/Meshes/SM_TrapSpikes.SM_TrapSpikes'"));
 	if (MeshAsset.Succeeded()) {
 		NewInstMesh->SetStaticMesh(MeshAsset.Object);
@@ -128,38 +134,53 @@ void ACubeSpikesTrapActor::SpawnInstMesh(FName MeshName, FTransform MeshTransfor
 	InstMeshList.Add(NewInstMesh);
 }
 
-void ACubeSpikesTrapActor::ActivationTick(float DeltaTime)
+void ACubeSpikesTrapActor::ActivationProgress()
 {
-	ActivationProgress += 2 * DeltaTime;
+	Progress += 0.02;
 
 	for (auto InstMesh : InstMeshList)
 	{
-		InstMesh->SetRelativeScale3D(FVector(1.f, 1.f, ActivationProgress));
+		InstMesh->SetRelativeScale3D(FVector(1.f, 1.f, Progress));
 	}
 
-	if (ActivationProgress >= 1.f)
+	if (Progress >= 1.f)
 	{
-		bActive = false;
-
-		FTimerHandle TimerHandle;
-
-		GetWorldTimerManager().SetTimer(TimerHandle, this, &ACubeSpikesTrapActor::Deactivate_Implementation, 5.f, false);
+		GetWorldTimerManager().ClearTimer(ProgressTimerHandle);
+		Deactivate_Implementation();
 	}
 }
 
-void ACubeSpikesTrapActor::DeactivationTick(float DeltaTime)
+void ACubeSpikesTrapActor::DeactivationProgress()
 {
-	ActivationProgress -= 2 * DeltaTime;
+	Progress -= 0.02;
+
+	if (Progress < 0.01f)
+	{
+		Progress = 0.f;
+		InstMeshRootComponent->SetHiddenInGame(true, true);
+		GetWorldTimerManager().ClearTimer(ProgressTimerHandle);
+	}
 
 	for (auto InstMesh : InstMeshList)
 	{
-		InstMesh->SetRelativeScale3D(FVector(1.f, 1.f, ActivationProgress));
+		InstMesh->SetRelativeScale3D(FVector(1.f, 1.f, Progress));
 	}
+}
 
-	if (ActivationProgress <= 0.01f)
+void ACubeSpikesTrapActor::CheckCharacterHit()
+{
+	AMainCharacter* MainCharacter = Cast<AMainCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+
+	if (MainCharacter == nullptr)
+		return;
+
+	TArray<AActor*> OverlappingActors;
+
+	GetOverlappingActors(OverlappingActors, ACubeSpikesTrapActor::StaticClass());
+
+	if (OverlappingActors.Num() > 0)
 	{
-		bDeactivate = false;
-		InstMeshRootComponent->SetHiddenInGame(true, true);
+		MainCharacter->Die();
 	}
 }
 

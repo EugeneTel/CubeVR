@@ -67,3 +67,16 @@ void ACubeLevelScriptActor::CubeInvestigated(FIntVector CubeId)
 
 }
 
+void ACubeLevelScriptActor::ReloadLevel()
+{
+	FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(GetWorld(), true);
+
+	UGameplayStatics::OpenLevel(GetWorld(), TEXT("VRBasic"));
+
+	/*AGameMode* GameMode = Cast<AGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+	GameMode->ResetLevel();
+	AMainCharacter* MainCharacter = Cast<AMainCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+	MainCharacter->SetActorLocation(FVector(273.f, -200.f, 93.f));*/
+
+}
+

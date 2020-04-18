@@ -70,7 +70,7 @@ public:
 	UFUNCTION()
 	void Investigate();
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
 	FIntVector CubeId;
 
 	UPROPERTY()

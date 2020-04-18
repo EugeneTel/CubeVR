@@ -8,13 +8,17 @@
 #include "Components/SphereComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Components/PostProcessComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Cube/Levels/CubeLevelScriptActor.h"
+#include "Sound/SoundCue.h"
+#include "Math/UnrealMathUtility.h"
+#include "Components/PawnNoiseEmitterComponent.h"
 
 
 #include "Log.h"
@@ -51,24 +55,32 @@ public:
 	// Called when the client is in climbing mode and is stepped up onto a platform
 	virtual void OnClimbingSteppedUp_Implementation() override;
 
+	// Called upon landing when falling
+	virtual void Landed(const FHitResult& Hit) override;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-private:
-	class UMainCharacterMovementComponent* MainCharacterMovementComponent;
-
 public:
-
 
 	/**
 	* Common properties and methods
 	*/
+
+	UPROPERTY(BlueprintReadOnly)
+	class UMainCharacterMovementComponent* MainCharacterMovementComponent;
+
+	UPROPERTY(BlueprintReadOnly)
+	class UPawnNoiseEmitterComponent* NoiseEmitter;
+
 	UFUNCTION(BlueprintCallable)
 	UPrimitiveComponent* GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag = "");
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	class ACubeLevelScriptActor* LevelScript;
+
+
 
 	/**
 	* Hands properties and methods
@@ -154,8 +166,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SnapTurnRight();
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bMoveForward;
+
 	UFUNCTION(BlueprintCallable)
 	void MoveForward(float Value);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool bMoveRight;
 
 	UFUNCTION(BlueprintCallable)
 	void MoveRight(float Value);
@@ -163,7 +181,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	bool bCroaching;
 
-	// Tunnel Croach
+	// Tunnel crouch
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	bool bInTunnel;
 
@@ -184,10 +202,56 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void StopTunnelCroach();
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bDead;
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
 
+	/**
+	 * Sound properties and methods
+	 */
+protected:
+
+	// position of the previous step
+	FVector StepLastPosition;
+
+	// Current distance from previous step
+	float StepCurrentDistance;
+
+	// is just starting walking
+	bool bStepBegin;
+
+	// is landing sound playing (TODO: refactor it)
+	bool bLandingSoundPlaying;
+
+public:
+	
+	// distance of one step
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	float StepLength;
+
+	// list of footsteps assets
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sound")
+	TArray<USoundCue*> FootstepsAssetList;
+
+	// Play footsteps sound
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	void CheckAndPlayFootstepsSound();
+
+	// Reset footsteps sound to begin
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	void ResetFootstepsSound();
+
+	// Check Is footsteps sound is active
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	bool IsFootstepsSoundActive();
+
+	// Play sound on landing
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	void CheckAndPlayLandedSound();
+
+	// Check Is landing sound is active
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	bool IsLandedSoundActive();
 };

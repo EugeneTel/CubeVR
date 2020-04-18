@@ -81,7 +81,7 @@ void ACubeSpikesTrapActor::OnColliderOverlapBegin(UPrimitiveComponent* Overlappe
 {
 	if (OtherComp->ComponentHasTag(TEXT("Trappable")))
 	{
-		Interact_Implementation();
+		//Interact_Implementation();
 	}
 }
 
@@ -91,8 +91,8 @@ void ACubeSpikesTrapActor::OnSpikesOverlapBegin(UPrimitiveComponent* OverlappedC
 
 	if (MainCharacter != nullptr)
 	{
-		FTimerHandle DeathTimerHandle;
-		GetWorldTimerManager().SetTimer(DeathTimerHandle, MainCharacter, &AMainCharacter::Die, 1.f, false, 1.f);
+		//FTimerHandle DeathTimerHandle;
+		//GetWorldTimerManager().SetTimer(DeathTimerHandle, MainCharacter, &AMainCharacter::Die, 1.f, false, 1.f);
 	}
 }
 

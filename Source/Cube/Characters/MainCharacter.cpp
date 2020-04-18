@@ -32,9 +32,15 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
 	PostProcessComponent->SetupAttachment(GetRootComponent());
 
+	NoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("NoiseEmitter"));
+
 	bInTunnel = false;
 	bCroaching = false;
 	bDead = false;
+	bStepBegin = true;
+	bLandingSoundPlaying = false;
+
+	StepLength = 80.f;
 
 }
 
@@ -92,10 +98,19 @@ void AMainCharacter::OnClimbingSteppedUp_Implementation()
 	MainCharacterMovementComponent->StopClimbing();
 }
 
+void AMainCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	CheckAndPlayLandedSound();
+}
+
 // Tick
 void AMainCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	CheckAndPlayFootstepsSound();
 }
 
 /*
@@ -202,6 +217,7 @@ void AMainCharacter::CheckAndHandleClimbing(UPrimitiveComponent* GrabSphere, UGr
 	}
 
 	InitTunnelCroach();
+	ResetFootstepsSound();
 	MainCharacterMovementComponent->InitClimbing(CallingMotionController, OverlappingObject);
 }
 
@@ -266,21 +282,37 @@ void AMainCharacter::GripRightReleased()
 void AMainCharacter::SnapTurnLeft()
 {
 	MainCharacterMovementComponent->PerformMoveAction_SnapTurn(-SnapTurnValue);
+	ResetFootstepsSound();
 }
 
 void AMainCharacter::SnapTurnRight()
 {
 	MainCharacterMovementComponent->PerformMoveAction_SnapTurn(SnapTurnValue);
+	ResetFootstepsSound();
 }
 
 void AMainCharacter::MoveForward(float Value)
 {
-	AddMovementInput(GetVRForwardVector(), Value);
+	if (FMath::IsNearlyZero(Value))
+	{
+		bMoveForward = false;
+	}
+	else {
+		bMoveForward = true;
+		AddMovementInput(GetVRForwardVector(), Value);
+	}
 }
 
 void AMainCharacter::MoveRight(float Value)
 {
-	AddMovementInput(GetVRRightVector(), Value);
+	if (FMath::IsNearlyZero(Value))
+	{
+		bMoveRight = false;
+	}
+	else {
+		bMoveForward = true;
+		AddMovementInput(GetVRRightVector(), Value);
+	}
 }
 
 void AMainCharacter::EnterTunnel()
@@ -299,7 +331,7 @@ void AMainCharacter::InitTunnelCroach()
 	if (bCroaching)
 		return;
 
-	//ULog::Success("+++++++++++++++++++++++++++++++++InitTunnelCroach++++++++++++++++++++++++++++++++", LO_Both);
+	ResetFootstepsSound();
 
 	bCroaching = true;
 
@@ -347,5 +379,74 @@ void AMainCharacter::Die()
 		// Set Fade Out Timer
 		GetWorldTimerManager().SetTimer(FadeTimerHandle, this, &AMainCharacter::FadeInProgress, 0.01f, true, 1.0f);
 	}
+}
+
+/**
+ * Sound logic
+ */
+
+void AMainCharacter::CheckAndPlayFootstepsSound()
+{
+	if (!IsFootstepsSoundActive() || FootstepsAssetList.Num() == 0 || !StepLength)
+		return;
+	
+	// if just start walking - remember position only
+	if (bStepBegin)
+	{
+		bStepBegin = false;
+		StepLastPosition = GetActorLocation();
+		return;
+	}
+
+	StepCurrentDistance += (GetActorLocation() - StepLastPosition).Size();
+	StepLastPosition = GetActorLocation();
+
+	// continue only if made full step
+	if (StepCurrentDistance < StepLength)
+		return;
+
+	StepCurrentDistance -= StepLength;
+
+	// find and play random sound
+	int32 SoundIndex = FMath::RandRange(0, FootstepsAssetList.Num() - 1);
+	UGameplayStatics::PlaySound2D(GetWorld(), FootstepsAssetList[SoundIndex], 0.5f);
+
+	MakeNoise(0.5f, this, GetActorLocation());
+}
+
+void AMainCharacter::ResetFootstepsSound()
+{
+	bStepBegin = true;
+}
+
+bool AMainCharacter::IsFootstepsSoundActive()
+{
+	return (bMoveForward || bMoveRight) && !bInTunnel && !bCroaching && !bDead && !MainCharacterMovementComponent->bHandClimbing && !MainCharacterMovementComponent->IsFalling();
+}
+
+void AMainCharacter::CheckAndPlayLandedSound()
+{
+	if (FootstepsAssetList.Num() == 0 || !IsLandedSoundActive())
+		return;
+
+	// find and play random sound
+	int32 SoundIndex = FMath::RandRange(0, FootstepsAssetList.Num() - 1);
+	UGameplayStatics::PlaySound2D(GetWorld(), FootstepsAssetList[SoundIndex], 1.f);
+
+	if (!bLandingSoundPlaying)
+	{
+		bLandingSoundPlaying = true;
+		FTimerHandle TimerHandle;
+		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainCharacter::CheckAndPlayLandedSound, 0.05f, false);
+	}
+	else {
+		bLandingSoundPlaying = false;
+		MakeNoise(1.f, this, GetActorLocation());
+	}
+}
+
+bool AMainCharacter::IsLandedSoundActive()
+{
+	return !bInTunnel;
 }
 

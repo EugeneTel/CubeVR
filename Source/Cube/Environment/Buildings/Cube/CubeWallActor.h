@@ -31,6 +31,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Cube")
 	class ACubeManagerActor* Manager;
 
 	// Opposite Wall Actor

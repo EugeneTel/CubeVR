@@ -12,11 +12,17 @@
 
 
 UINTERFACE(Blueprintable)
-class UVRGripInterface: public UInterface
+class VREXPANSIONPLUGIN_API UVRGripInterface: public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
+
+/** Delegate for notification when the controller grips a new object. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FVROnGripSignature, UGripMotionControllerComponent *, GrippingController, const FBPActorGripInformation&, GripInformation);
+
+/** Delegate for notification when the controller drops a gripped object. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FVROnDropSignature, UGripMotionControllerComponent*, GrippingController, const FBPActorGripInformation&, GripInformation, bool, bWasSocketed);
 
 class VREXPANSIONPLUGIN_API IVRGripInterface
 {

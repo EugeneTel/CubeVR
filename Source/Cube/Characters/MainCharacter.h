@@ -6,23 +6,25 @@
 #include "VRCharacter.h"
 #include "MainCharacterMovementComponent.h"
 #include "Components/SphereComponent.h"
-#include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/PostProcessComponent.h"
+#include "Components/PawnNoiseEmitterComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Engine/World.h"
 #include "TimerManager.h"
 #include "Cube/Levels/CubeLevelScriptActor.h"
 #include "Sound/SoundCue.h"
-#include "Math/UnrealMathUtility.h"
-#include "Components/PawnNoiseEmitterComponent.h"
-
+#include "Enums/GripState.h"
+#include "VRGripInterface.h"
+#include "Animations/HandAnimInstance.h"
 
 #include "Log.h"
+#include "Cube/Props/ShoeActor.h"
+
 #include "MainCharacter.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGripDropped, UGripMotionControllerComponent*, GripController, UObject*, DroppedObject);
 
 UENUM(BlueprintType)
 enum class EGripHand : uint8
@@ -67,19 +69,57 @@ public:
 	/**
 	* Common properties and methods
 	*/
-
+	
+	UPROPERTY(BlueprintReadOnly)
+    class ACubeLevelScriptActor* LevelScript;
+	
 	UPROPERTY(BlueprintReadOnly)
 	class UMainCharacterMovementComponent* MainCharacterMovementComponent;
 
 	UPROPERTY(BlueprintReadOnly)
 	class UPawnNoiseEmitterComponent* NoiseEmitter;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPostProcessComponent* PostProcessComponent;
 
+	UPROPERTY(EditAnywhere)
+    UMaterialInterface* FadeMaterial;
+
+	UPROPERTY()
+    UMaterialInstanceDynamic* FadeMaterialInstance;
+
+	UPROPERTY()
+    float FadeProgress;
+
+	UPROPERTY()
+    bool bFading;
+
+	UPROPERTY()
+    FTimerHandle FadeTimerHandle;
+
+	UFUNCTION()
+    void FadeInProgress();
+
+	UFUNCTION()
+    void FadeOutProgress();
+
+	// Get Nearest overlapping object by tag
 	UFUNCTION(BlueprintCallable)
 	UPrimitiveComponent* GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag = "");
 
-	UPROPERTY(BlueprintReadOnly)
-	class ACubeLevelScriptActor* LevelScript;
+	// Attach a Shoe to the Body socket
+	UFUNCTION(BlueprintCallable)
+	void CheckAndAttachShoeToBody(AShoeActor* ShoeActor) const;
 
+	/**
+	 * Body properties and methods
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Body")
+	UStaticMeshComponent* BodyMesh;
+
+	// Set body position
+	UFUNCTION(BlueprintCallable)
+	void UpdateBodyPosition() const;
 
 
 	/**
@@ -88,7 +128,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
 	class USphereComponent* GrabSphereRight;
-	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
 	class USphereComponent* GrabSphereLeft;
@@ -98,36 +137,61 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hands")
 	class USkeletalMeshComponent* HandMeshRight;
+	
+	UFUNCTION(BlueprintCallable)
+    bool TraceFromController(UGripMotionControllerComponent* CallingController, FHitResult& OutHitResult) const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UPostProcessComponent* PostProcessComponent;
-
-	UPROPERTY(EditAnywhere)
-	UMaterialInterface* FadeMaterial;
-
+	/**
+	 * Gripping properties and methods
+	 */
 	UPROPERTY()
-	UMaterialInstanceDynamic* FadeMaterialInstance;
+	FOnGripDropped OnGripDropped;
+	
+	UPROPERTY(BlueprintReadWrite)
+	bool bGripPressedLeft;
 
-	UPROPERTY()
-	float FadeProgress;
+	UPROPERTY(BlueprintReadWrite)
+	bool bGripPressedRight;
 
-	UPROPERTY()
-	bool bFading;
+	UPROPERTY(BlueprintReadWrite)
+	EGripState GripStateLeft;
 
-	UPROPERTY()
-	FTimerHandle FadeTimerHandle;
+	UPROPERTY(BlueprintReadWrite)
+	EGripState GripStateRight;
 
-	UFUNCTION()
-	void FadeInProgress();
-
-	UFUNCTION()
-	void FadeOutProgress();
+	
+	UFUNCTION(BlueprintCallable)
+    void CheckAndHandleGrip(UPrimitiveComponent* GrabSphere, UGripMotionControllerComponent* CallingController);
 
 	UFUNCTION(BlueprintCallable)
-	bool CheckAndHandleGripAnimations();
+    void DropAllGrips(UGripMotionControllerComponent* CallingController) const;
+
+	UFUNCTION()
+	void GripDropped(UGripMotionControllerComponent* GripController, UObject* DroppedObject);
 
 	UFUNCTION(BlueprintCallable)
-	bool HasValidGripCollision(UPrimitiveComponent* Component);
+	void CheckAndHandleGripAnimations();
+
+	// Set Grip Controller Animation property
+	UFUNCTION(BlueprintCallable)
+	void CheckAndHandleGripControllerAnimations(UPrimitiveComponent* GrabSphere, UGripMotionControllerComponent* CallingController, bool bGripPressed, EGripState& GripState);
+
+	// Check is a Component valid for grip collision
+	UFUNCTION(BlueprintCallable)
+	static bool HasValidGripCollision(UPrimitiveComponent* Component);
+
+	// Grip Input bindings
+	UFUNCTION(BlueprintCallable)
+    void GripLeftPressed();
+
+	UFUNCTION(BlueprintCallable)
+    void GripRightPressed();
+
+	UFUNCTION(BlueprintCallable)
+    void GripLeftReleased();
+
+	UFUNCTION(BlueprintCallable)
+    void GripRightReleased();
 
 
 	/**
@@ -143,19 +207,6 @@ public:
 	* Input properties and methods
 	*/
 
-	// Gripping
-	UFUNCTION(BlueprintCallable)
-	void GripLeftPressed();
-
-	UFUNCTION(BlueprintCallable)
-	void GripRightPressed();
-
-	UFUNCTION(BlueprintCallable)
-	void GripLeftReleased();
-
-	UFUNCTION(BlueprintCallable)
-	void GripRightReleased();
-
 	// Movement
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float SnapTurnValue = 45.f;
@@ -170,16 +221,16 @@ public:
 	bool bMoveForward;
 
 	UFUNCTION(BlueprintCallable)
-	void MoveForward(float Value);
+	void MoveForward(const float Value);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Movement")
 	bool bMoveRight;
 
 	UFUNCTION(BlueprintCallable)
-	void MoveRight(float Value);
+	void MoveRight(const float Value);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	bool bCroaching;
+	bool bCrouching;
 
 	// Tunnel crouch
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
@@ -194,13 +245,13 @@ public:
 	void ExitTunnel();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float TunnelCroachOffset;
+	float TunnelCrouchOffset;
 
 	UFUNCTION(BlueprintCallable)
-	void InitTunnelCroach();
+	void InitTunnelCrouch();
 
 	UFUNCTION(BlueprintCallable)
-	void StopTunnelCroach();
+	void StopTunnelCrouch();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bDead;

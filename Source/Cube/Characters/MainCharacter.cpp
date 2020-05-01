@@ -3,6 +3,7 @@
 
 #include "MainCharacter.h"
 
+
 // Sets default values
 AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UMainCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -29,13 +30,20 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	GrabSphereLeft->SetSphereRadius(4.f);
 	// TODO: Prepare collision presets for Sphere
 
+	/**
+	 * Common preparation
+	 */
 	PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
 	PostProcessComponent->SetupAttachment(GetRootComponent());
 
 	NoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("NoiseEmitter"));
 
+	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
+	BodyMesh->SetupAttachment(NetSmoother);
+	BodyMesh->SetCollisionProfileName(TEXT("NoCollision"));
+
 	bInTunnel = false;
-	bCroaching = false;
+	bCrouching = false;
 	bDead = false;
 	bStepBegin = true;
 	bLandingSoundPlaying = false;
@@ -48,6 +56,9 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 void AMainCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Binding Multi-Cast Delegates
+	OnGripDropped.AddDynamic(this, &AMainCharacter::GripDropped);
 
 	// Set Tracking to Floor. Without it in Oculus Rift is under floor.
 	UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(EHMDTrackingOrigin::Floor);
@@ -111,6 +122,10 @@ void AMainCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	CheckAndPlayFootstepsSound();
+
+	UpdateBodyPosition();
+
+	CheckAndHandleGripAnimations();
 }
 
 /*
@@ -152,7 +167,7 @@ UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveCompo
 	// Go through all overlapped components and looking for the first valid
 	for (UPrimitiveComponent* OutComponent : OutComponents)
 	{
-		bool bByTag = Tag == "" ? true : OutComponent->ComponentHasTag(Tag);
+		const bool bByTag = Tag == "" ? true : OutComponent->ComponentHasTag(Tag);
 		if (HasValidGripCollision(OutComponent) && bByTag)
 		{
 			return OutComponent;
@@ -160,6 +175,52 @@ UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveCompo
 	}
 
 	return nullptr;
+}
+
+void AMainCharacter::CheckAndAttachShoeToBody(AShoeActor* ShoeActor) const
+{
+	const float MinAttachDistance = 20.f;
+	
+	const float RightSocketDistance = (ShoeActor->GetActorLocation() - BodyMesh->GetSocketLocation(TEXT("ShoeRight"))).Size();
+	const float LeftSocketDistance = (ShoeActor->GetActorLocation() - BodyMesh->GetSocketLocation(TEXT("ShoeLeft"))).Size();
+
+	if (RightSocketDistance > MinAttachDistance && LeftSocketDistance > MinAttachDistance)
+		return;
+	
+	FName SocketName;
+	if (LeftSocketDistance < RightSocketDistance)
+	{
+		SocketName = FName("ShoeLeft");
+	} else
+	{
+		SocketName = FName("ShoeRight");
+	}
+
+	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, true);
+	
+	ShoeActor->AttachToComponent(BodyMesh, AttachmentRules, SocketName);
+}
+
+void AMainCharacter::UpdateBodyPosition() const
+{
+	FVector BodyLocation = VRReplicatedCamera->GetRelativeLocation();
+	BodyLocation -= FVector(0.f, 0.f, 30.f);
+	BodyMesh->SetRelativeLocation(BodyLocation);
+
+	FRotator BodyRotator = NetSmoother->GetComponentRotation();
+	BodyRotator -= FRotator(0.f, 90.f, 0.f);
+	BodyMesh->SetWorldRotation(BodyRotator);
+}
+
+bool AMainCharacter::TraceFromController(UGripMotionControllerComponent* CallingController, FHitResult& OutHitResult) const
+{
+	const float MaxTraceDistance = 500.f;
+
+	const FVector TraceStart = CallingController->GetComponentLocation();
+	const FVector TraceEnd = TraceStart + (CallingController->GetForwardVector() * MaxTraceDistance);
+
+	const TArray<AActor*> ActorsToIgnore;
+	return UKismetSystemLibrary::SphereTraceSingle(GetWorld(), TraceStart, TraceEnd, 5.f, ETraceTypeQuery::TraceTypeQuery3, false, ActorsToIgnore, EDrawDebugTrace::ForDuration, OutHitResult, true, FLinearColor::Green, FLinearColor::Red, 0.3f);
 }
 
 /**
@@ -213,10 +274,10 @@ void AMainCharacter::CheckAndHandleClimbing(UPrimitiveComponent* GrabSphere, UGr
 
 	if (OverlappingObject->ComponentHasTag(TEXT("crouchable")))
 	{
-		InitTunnelCroach();
+		InitTunnelCrouch();
 	}
 
-	InitTunnelCroach();
+	InitTunnelCrouch();
 	ResetFootstepsSound();
 	MainCharacterMovementComponent->InitClimbing(CallingMotionController, OverlappingObject);
 }
@@ -227,7 +288,7 @@ void AMainCharacter::CheckAndStopClimbing(UGripMotionControllerComponent* Callin
 	if (MainCharacterMovementComponent->bHandClimbing && CallingMotionController == MainCharacterMovementComponent->ClimbingHand)
 	{
 		MainCharacterMovementComponent->StopClimbing();
-		StopTunnelCroach();
+		StopTunnelCrouch();
 	}
 }
 
@@ -235,16 +296,44 @@ void AMainCharacter::CheckAndStopClimbing(UGripMotionControllerComponent* Callin
 * Gripping logic
 */
 
-bool AMainCharacter::CheckAndHandleGripAnimations()
+void AMainCharacter::CheckAndHandleGripAnimations()
 {
-	return false;
+	// Left Hand
+	CheckAndHandleGripControllerAnimations(GrabSphereLeft, LeftMotionController, bGripPressedLeft, GripStateLeft);
+	UHandAnimInstance* LeftAnimInst = Cast<UHandAnimInstance>(HandMeshLeft->GetAnimInstance());
+	LeftAnimInst->GripState = GripStateLeft;
+	
+	// Right Hand
+	CheckAndHandleGripControllerAnimations(GrabSphereRight, RightMotionController, bGripPressedRight, GripStateRight);
+	UHandAnimInstance* RightAnimInst = Cast<UHandAnimInstance>(HandMeshRight->GetAnimInstance());
+	RightAnimInst->GripState = GripStateRight;
+}
+
+void AMainCharacter::CheckAndHandleGripControllerAnimations(UPrimitiveComponent* GrabSphere,
+	UGripMotionControllerComponent* CallingController, bool bGripPressed, EGripState& GripState)
+{
+	if (bGripPressed || CallingController->HasGrippedObjects())
+	{
+		GripState = EGripState::EGS_Grab;
+	} else
+	{
+		UPrimitiveComponent* NearestObject = GetNearestOverlappingObject(GrabSphere);
+
+		if (IsValid(NearestObject))
+		{
+			GripState = EGripState::EGS_CanGrab;
+		} else
+		{
+			GripState = EGripState::EGS_Open;
+		}
+	}
 }
 
 // HasValidGripCollision
 bool AMainCharacter::HasValidGripCollision(UPrimitiveComponent* Component)
 {
 	// Get Collision response for VRTraceChannel
-	ECollisionResponse CollisionResponse = Component->GetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1);
+	const ECollisionResponse CollisionResponse = Component->GetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1);
 
 	switch (CollisionResponse)
 	{
@@ -256,28 +345,96 @@ bool AMainCharacter::HasValidGripCollision(UPrimitiveComponent* Component)
 	}
 }
 
-/**
-* Input Methods
-*/
+void AMainCharacter::CheckAndHandleGrip(UPrimitiveComponent* GrabSphere, UGripMotionControllerComponent* CallingController)
+{
+	UPrimitiveComponent* NearestObject = GetNearestOverlappingObject(GrabSphere);
+
+	if (!IsValid(NearestObject))
+		return;
+	
+	if (!UKismetSystemLibrary::DoesImplementInterface(NearestObject, UVRGripInterface::StaticClass())
+		&& !UKismetSystemLibrary::DoesImplementInterface(NearestObject->GetOwner(), UVRGripInterface::StaticClass()))
+			return;
+
+	CallingController->GripObjectByInterface(NearestObject, NearestObject->GetComponentTransform());
+}
+
+void AMainCharacter::DropAllGrips(UGripMotionControllerComponent* CallingController) const
+{
+	if (!CallingController->HasGrippedObjects())
+		return;
+
+	TArray<UObject*> GrippedObjectsArray; 
+
+	CallingController->GetGrippedObjects(GrippedObjectsArray);
+	
+	for (UObject* GrippedObject : GrippedObjectsArray)
+	{
+		if (UKismetSystemLibrary::DoesImplementInterface(GrippedObject, UVRGripInterface::StaticClass()))
+		{
+			if (CallingController->DropObjectByInterface(GrippedObject))
+			{
+				OnGripDropped.Broadcast(CallingController, GrippedObject);
+			}
+		} else
+		{
+			if (CallingController->DropObject(GrippedObject, 0, true))
+			{
+				OnGripDropped.Broadcast(CallingController, GrippedObject);
+			}
+		}
+	}
+}
+
+// ReSharper disable once CppMemberFunctionMayBeConst
+void AMainCharacter::GripDropped(UGripMotionControllerComponent* GripController, UObject* DroppedObject)
+{	
+	AShoeActor* ShoeActor = Cast<AShoeActor>(DroppedObject);
+	if (ShoeActor != nullptr)
+	{
+		CheckAndAttachShoeToBody(ShoeActor);
+	}
+}
+
 void AMainCharacter::GripLeftPressed()
 {
+	bGripPressedLeft = true;
+	
 	CheckAndHandleClimbing(GrabSphereLeft, LeftMotionController);
+
+	CheckAndHandleGrip(GrabSphereLeft, LeftMotionController);
 }
 
 void AMainCharacter::GripLeftReleased()
 {
+	bGripPressedLeft = false;
+	
 	CheckAndStopClimbing(LeftMotionController);
+
+	DropAllGrips(LeftMotionController);
 }
 
 void AMainCharacter::GripRightPressed()
 {
+	bGripPressedRight = true;
+	
 	CheckAndHandleClimbing(GrabSphereRight, RightMotionController);
+
+	CheckAndHandleGrip(GrabSphereRight, RightMotionController);
 }
 
 void AMainCharacter::GripRightReleased()
 {
+	bGripPressedRight = false;
+	
 	CheckAndStopClimbing(RightMotionController);
+
+	DropAllGrips(RightMotionController);
 }
+
+/**
+* Input Methods
+*/
 
 void AMainCharacter::SnapTurnLeft()
 {
@@ -291,7 +448,7 @@ void AMainCharacter::SnapTurnRight()
 	ResetFootstepsSound();
 }
 
-void AMainCharacter::MoveForward(float Value)
+void AMainCharacter::MoveForward(const float Value)
 {
 	if (FMath::IsNearlyZero(Value))
 	{
@@ -303,7 +460,7 @@ void AMainCharacter::MoveForward(float Value)
 	}
 }
 
-void AMainCharacter::MoveRight(float Value)
+void AMainCharacter::MoveRight(const float Value)
 {
 	if (FMath::IsNearlyZero(Value))
 	{
@@ -323,38 +480,38 @@ void AMainCharacter::EnterTunnel()
 void AMainCharacter::ExitTunnel()
 {
 	bInTunnel = false;
-	StopTunnelCroach();
+	StopTunnelCrouch();
 }
 
-void AMainCharacter::InitTunnelCroach()
+void AMainCharacter::InitTunnelCrouch()
 {
-	if (bCroaching)
+	if (bCrouching)
 		return;
 
 	ResetFootstepsSound();
 
-	bCroaching = true;
+	bCrouching = true;
 
-	VRRootReference->SetCapsuleHalfHeightVR(33.f);
+	VRRootReference->SetCapsuleHalfHeightVR(35.f);
 
-	TunnelCroachOffset = VRReplicatedCamera->GetComponentLocation().Z - VRRootReference->GetComponentLocation().Z - 45.f;
-	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
-	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
-	MainCharacterMovementComponent->MaxWalkSpeed = 80.f;
+	TunnelCrouchOffset = VRReplicatedCamera->GetComponentLocation().Z - VRRootReference->GetComponentLocation().Z - 60.f;
+	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, TunnelCrouchOffset));
+	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, -TunnelCrouchOffset));
+	MainCharacterMovementComponent->MaxWalkSpeed = 40.f;
 }
 
-void AMainCharacter::StopTunnelCroach()
+void AMainCharacter::StopTunnelCrouch()
 {
-	if (!bCroaching || bInTunnel || MainCharacterMovementComponent->bHandClimbing)
+	if (!bCrouching || bInTunnel || MainCharacterMovementComponent->bHandClimbing)
 		return;
 
-	//ULog::Error("+++++++++++++++++++++++++++++++++StopTunnelCroach++++++++++++++++++++++++++++++++", LO_Both);
+	//ULog::Error("+++++++++++++++++++++++++++++++++StopTunnelCrouch++++++++++++++++++++++++++++++++", LO_Both);
 
-	bCroaching = false;
+	bCrouching = false;
 
 	VRRootReference->SetCapsuleHalfHeightVR(96.f);
-	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, -TunnelCroachOffset));
-	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, TunnelCroachOffset));
+	VRRootReference->AddWorldOffset(FVector(0.f, 0.f, -TunnelCrouchOffset));
+	NetSmoother->AddWorldOffset(FVector(0.f, 0.f, TunnelCrouchOffset));
 	MainCharacterMovementComponent->MaxWalkSpeed = 200.f;
 }
 
@@ -421,7 +578,7 @@ void AMainCharacter::ResetFootstepsSound()
 
 bool AMainCharacter::IsFootstepsSoundActive()
 {
-	return (bMoveForward || bMoveRight) && !bInTunnel && !bCroaching && !bDead && !MainCharacterMovementComponent->bHandClimbing && !MainCharacterMovementComponent->IsFalling();
+	return (bMoveForward || bMoveRight) && !bInTunnel && !bCrouching && !bDead && !MainCharacterMovementComponent->bHandClimbing && !MainCharacterMovementComponent->IsFalling();
 }
 
 void AMainCharacter::CheckAndPlayLandedSound()

@@ -50,6 +50,9 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	UFUNCTION()
+	FText GetCubeLabel() const;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

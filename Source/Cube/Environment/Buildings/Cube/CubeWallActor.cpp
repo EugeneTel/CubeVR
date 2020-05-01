@@ -13,6 +13,7 @@ ACubeWallActor::ACubeWallActor()
 	WallMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WallMesh"));
 	RootComponent = WallMesh;
 	WallMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	WallMesh->Mobility = EComponentMobility::Static;
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> WallMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeWall.SM_CubeWall'"));
 	if (WallMeshAsset.Succeeded()) {
 		WallMesh->SetStaticMesh(WallMeshAsset.Object);
@@ -23,6 +24,7 @@ ACubeWallActor::ACubeWallActor()
 	LadderMesh->SetupAttachment(GetRootComponent());
 	LadderMesh->ComponentTags.Add(TEXT("climable"));
 	LadderMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	LadderMesh->Mobility = EComponentMobility::Static;
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> LadderMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeLadder.SM_CubeLadder'"));
 	if (LadderMeshAsset.Succeeded()) {
 		LadderMesh->SetStaticMesh(LadderMeshAsset.Object);
@@ -34,6 +36,7 @@ ACubeWallActor::ACubeWallActor()
 	TunnelMesh->ComponentTags.Add(TEXT("climable"));
 	TunnelMesh->ComponentTags.Add(TEXT("crouchable"));
 	TunnelMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	TunnelMesh->Mobility = EComponentMobility::Static;
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> TunnelMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeTunnel.SM_CubeTunnel'"));
 	if (TunnelMeshAsset.Succeeded()) {
 		TunnelMesh->SetStaticMesh(TunnelMeshAsset.Object);
@@ -45,6 +48,7 @@ ACubeWallActor::ACubeWallActor()
 	TunnelCollision->SetBoxExtent(FVector(40.f, 40.f, 40.f));
 	TunnelCollision->SetRelativeLocation(FVector(0.f, 0.f, -15.f));
 	TunnelCollision->SetCollisionProfileName(TEXT("IgnoreVRTraceOnly"));
+	TunnelCollision->Mobility = EComponentMobility::Static;
 
 	// Prepare Door
 	DoorSpline = CreateDefaultSubobject<USplineComponent>(TEXT("DoorSpline"));
@@ -66,10 +70,29 @@ ACubeWallActor::ACubeWallActor()
 	GlassInstMesh->AddInstance(FTransform(FVector(-131.3f, 262.6f, 0.f)));
 	GlassInstMesh->AddInstance(FTransform(FVector(0.f, 262.6f, 0.f)));
 	GlassInstMesh->AddInstance(FTransform(FVector(131.3f, 262.6f, 0.f)));
+	GlassInstMesh->Mobility = EComponentMobility::Static;
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> GlassMeshAsset(TEXT("StaticMesh'/Game/Cube/Environment/Buildings/Cube/Meshes/SM_CubeGlass.SM_CubeGlass'"));
 	if (GlassMeshAsset.Succeeded()) {
 		GlassInstMesh->SetStaticMesh(GlassMeshAsset.Object);
 	}
+
+	// Prepare Label
+	LabelMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LabelMesh"));
+	LabelMesh->SetupAttachment(TunnelMesh);
+	LabelMesh->Mobility = EComponentMobility::Static;
+	LabelMesh->SetRelativeLocation(FVector(37.3f,0.f,-40.f));
+	LabelMesh->SetRelativeRotation(FRotator(0.f,-90,90));
+
+	LabelText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("LabelText"));
+	LabelText->SetupAttachment(LabelMesh);
+	LabelText->Mobility = EComponentMobility::Static;
+	LabelText->SetRelativeLocation(FVector(0.f,0.73f,-0.21f));
+	LabelText->SetRelativeRotation(FRotator(-90.f, -90.f, 0.f));
+	LabelText->SetRelativeScale3D(FVector(0.7f,0.7f,0.7f));
+	LabelText->HorizontalAlignment = EHorizTextAligment::EHTA_Center;
+	LabelText->TextRenderColor = FColor::Black;
+	LabelText->WorldSize = 2.f;
+	LabelText->Text = FText::FromString("0 0 0");
 
 	// Prepare Light
 	RectLight = CreateDefaultSubobject<URectLightComponent>(TEXT("RectLight"));
@@ -144,7 +167,7 @@ void ACubeWallActor::OnTunnelCollisionOverlapEnd(UPrimitiveComponent* Overlapped
 	}
 }
 
-bool ACubeWallActor::IsCharacterInTunnel()
+bool ACubeWallActor::IsCharacterInTunnel() const
 {
 	TArray<AActor*> OverlappingActors;
 	TunnelCollision->GetOverlappingActors(OverlappingActors);
@@ -162,7 +185,7 @@ bool ACubeWallActor::IsCharacterInTunnel()
 	return false;
 }
 
-void ACubeWallActor::SetGlassMaterial(UMaterialInterface* NewMaterial)
+void ACubeWallActor::SetGlassMaterial(UMaterialInterface* NewMaterial) const
 {
 	for (int i = 0; i < 8; i++)
 	{
@@ -207,5 +230,10 @@ void ACubeWallActor::SetOppositeWall(ACubeWallActor* WallActor)
 
 	// Set for the opposite wall actor
 	WallActor->SetOppositeWall(this);
+}
+
+void ACubeWallActor::SetLabelText(const FText Text) const
+{
+	LabelText->SetText(Text);
 }
 

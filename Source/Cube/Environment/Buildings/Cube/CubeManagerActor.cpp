@@ -3,6 +3,8 @@
 
 #include "CubeManagerActor.h"
 
+#define LOCTEXT_NAMESPACE "CubeManager"
+
 // Sets default values
 ACubeManagerActor::ACubeManagerActor()
 {
@@ -25,6 +27,11 @@ void ACubeManagerActor::BeginPlay()
 	Super::BeginPlay();
 
 	SpawnCubeWalls();
+}
+
+FText ACubeManagerActor::GetCubeLabel() const
+{
+	return FText::Format(LOCTEXT("CubeLabelText", "{0} {1} {2}"), CubeId.X, CubeId.Y, CubeId.Z);
 }
 
 // Called every frame
@@ -70,6 +77,8 @@ void ACubeManagerActor::SpawnCubeWalls()
 	int32 MaterialIndex = FMath::RandRange(0, GlassMaterialList.Num() - 1);
 	UMaterialInterface* GlassMaterial = GlassMaterialList[MaterialIndex];
 
+	const FText CubeLabel = GetCubeLabel();
+
 	for (FTransform WallTransform : SpawnWallsTransform)
 	{
 		ACubeWallActor* SpawnedWall = GetWorld()->SpawnActor<ACubeWallActor>(
@@ -81,6 +90,7 @@ void ACubeManagerActor::SpawnCubeWalls()
 		SpawnedWall->SetGlassMaterial(GlassMaterial);
 		SpawnedWall->Manager = this;
 		SpawnedWall->FindOppositeWall();
+		SpawnedWall->SetLabelText(CubeLabel);
 
 		SpawnedWalls.Add(SpawnedWall);
 	}

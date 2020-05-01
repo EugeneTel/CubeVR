@@ -9,6 +9,7 @@
 #include "CubeLadderComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/RectLightComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Cube/Characters/MainCharacter.h"
 #include "Cube/Environment/Buildings/Cube/CubeManagerActor.h"
 
@@ -60,6 +61,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
 	UBoxComponent* TunnelCollision;
 
+	// Label mesh
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
+	UStaticMeshComponent* LabelMesh;
+
+	// Label text
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cube")
+	UTextRenderComponent* LabelText;
+
+	UFUNCTION(BlueprintCallable)
+	void SetLabelText(FText Text) const;
+
 	UFUNCTION()
 	virtual void OnTunnelCollisionOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -68,7 +80,7 @@ public:
 
 	// Check Is the Main Character still in the Tunnel
 	UFUNCTION(BlueprintCallable)
-	bool IsCharacterInTunnel();
+	bool IsCharacterInTunnel() const;
 
 	// Door movement route
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cube")
@@ -90,6 +102,6 @@ public:
 	bool bCharacterInTunnel;
 
 	UFUNCTION(BlueprintCallable)
-	void SetGlassMaterial(UMaterialInterface* NewMaterial);
+	void SetGlassMaterial(UMaterialInterface* NewMaterial) const;
 
 };

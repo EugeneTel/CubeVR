@@ -32,17 +32,18 @@ void ACubeLevelScriptActor::CreateStartCubes()
 	CubeInvestigated(StartCube);
 }
 
-void ACubeLevelScriptActor::SpawnCube(FIntVector CubeId)
+void ACubeLevelScriptActor::SpawnCube(const FIntVector CubeId)
 {
 	// Spawn only unique cubes
 	if (CubeList.Find(CubeId) != nullptr || CubeManagerToSpawn == nullptr)
 		return;
 	
 	FActorSpawnParameters SpawnParams;
-	FVector NewCubeLocation = UKismetMathLibrary::Conv_IntVectorToVector(CubeId) * 500;
+	const FTransform NewCubeTransform(UKismetMathLibrary::Conv_IntVectorToVector(CubeId) * 500);
 
-	ACubeManagerActor* NewCubeManager = GetWorld()->SpawnActor<ACubeManagerActor>(CubeManagerToSpawn, NewCubeLocation, FRotator::ZeroRotator, SpawnParams);
+	ACubeManagerActor* NewCubeManager = GetWorld()->SpawnActorDeferred<ACubeManagerActor>(CubeManagerToSpawn, NewCubeTransform);
 	NewCubeManager->CubeId = CubeId;
+	UGameplayStatics::FinishSpawningActor(NewCubeManager, NewCubeTransform);
 
 	CubeList.Add(CubeId, NewCubeManager);
 
@@ -53,7 +54,7 @@ void ACubeLevelScriptActor::SpawnCube(FIntVector CubeId)
 	}
 }
 
-void ACubeLevelScriptActor::CubeInvestigated(FIntVector CubeId)
+void ACubeLevelScriptActor::CubeInvestigated(const FIntVector CubeId)
 {
 	//ULog::Success("-------------------------Cube Investigated--------------------------", LO_Both);
 

@@ -31,16 +31,27 @@ AMainCharacter::AMainCharacter(const FObjectInitializer& ObjectInitializer)
 	// TODO: Prepare collision presets for Sphere
 
 	/**
+	 * Body preparations
+	 */
+	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
+	BodyMesh->SetupAttachment(NetSmoother);
+	BodyMesh->SetCollisionProfileName(TEXT("NoCollision"));
+
+	BodySocketLeft.BodyMesh = BodyMesh;
+	BodySocketLeft.Name = TEXT("ShoeLeft");
+	BodySocketLeft.bBusy = false;
+	
+	BodySocketRight.BodyMesh = BodyMesh;
+	BodySocketRight.Name = TEXT("ShoeRight");
+	BodySocketRight.bBusy = false;
+
+	/**
 	 * Common preparation
 	 */
 	PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
 	PostProcessComponent->SetupAttachment(GetRootComponent());
 
 	NoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("NoiseEmitter"));
-
-	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
-	BodyMesh->SetupAttachment(NetSmoother);
-	BodyMesh->SetCollisionProfileName(TEXT("NoCollision"));
 
 	bInTunnel = false;
 	bCrouching = false;
@@ -133,7 +144,7 @@ void AMainCharacter::Tick(float DeltaTime)
 */
 
 // GetNearestOverlappingObject
-UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag)
+UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, const FName Tag)
 {
 	if (OverlapComponent == nullptr)
 	{
@@ -177,28 +188,61 @@ UPrimitiveComponent* AMainCharacter::GetNearestOverlappingObject(UPrimitiveCompo
 	return nullptr;
 }
 
-void AMainCharacter::CheckAndAttachShoeToBody(AShoeActor* ShoeActor) const
+void AMainCharacter::CheckAndAttachShoeToBody(AShoeActor* ShoeActor)
 {
-	const float MinAttachDistance = 20.f;
-	
-	const float RightSocketDistance = (ShoeActor->GetActorLocation() - BodyMesh->GetSocketLocation(TEXT("ShoeRight"))).Size();
-	const float LeftSocketDistance = (ShoeActor->GetActorLocation() - BodyMesh->GetSocketLocation(TEXT("ShoeLeft"))).Size();
+	const float MinAttachDistance = 15.f;
 
-	if (RightSocketDistance > MinAttachDistance && LeftSocketDistance > MinAttachDistance)
+	// Attach only to not busy sockets
+	if (BodySocketLeft.IsBusy() && BodySocketRight.IsBusy())
 		return;
 	
-	FName SocketName;
-	if (LeftSocketDistance < RightSocketDistance)
+	float RightSocketDistance;
+	const bool RightSocketValid = BodySocketRight.CalculateDistanceToPoint(ShoeActor->GetActorLocation(), RightSocketDistance);
+	
+	float LeftSocketDistance;
+	const bool LeftSocketValid = BodySocketLeft.CalculateDistanceToPoint(ShoeActor->GetActorLocation(), LeftSocketDistance);
+
+	if (!RightSocketValid || !LeftSocketValid)
 	{
-		SocketName = FName("ShoeLeft");
+		UE_LOG(LogTemp, Error, TEXT("Some of Body Sockets is not valid or not found!"));
+		return;
+	}
+	
+	// Check is BodySocketLeft suitable for attachment
+	if (!BodySocketLeft.IsBusy() && LeftSocketDistance < MinAttachDistance && LeftSocketDistance < RightSocketDistance)
+	{
+		AttachShoeToBody(ShoeActor, BodySocketLeft);
 	} else
 	{
-		SocketName = FName("ShoeRight");
+		// Check is BodySocketRight suitable for attachment
+		if (!BodySocketRight.IsBusy() && RightSocketDistance < MinAttachDistance)
+		{
+			AttachShoeToBody(ShoeActor, BodySocketRight);
+		}
 	}
+}
 
-	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, true);
-	
-	ShoeActor->AttachToComponent(BodyMesh, AttachmentRules, SocketName);
+void AMainCharacter::AttachShoeToBody(AShoeActor* ShoeActor, FBodySocket& BodySocket) const
+{
+	// Attach the Shoe to the Suitable Socket
+	const FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, true);
+	ShoeActor->AttachToComponent(BodyMesh, AttachmentRules, BodySocket.Name);
+	ShoeActor->GetStaticMeshComponent()->SetCollisionProfileName("OverlapOnlyPawn");
+	BodySocket.Attach(ShoeActor);
+}
+
+void AMainCharacter::CheckAndDetachShoeFromBody(AShoeActor* ShoeActor)
+{
+	// Check sockets
+	if (BodySocketRight.IsBusy() && BodySocketRight.AttachedActor->GetClass() == ShoeActor->GetClass())
+	{
+		BodySocketRight.Detach();
+		ShoeActor->GetStaticMeshComponent()->SetCollisionProfileName("PhysicsActor");
+	} else if (BodySocketLeft.IsBusy() && BodySocketLeft.AttachedActor->GetClass() == ShoeActor->GetClass())
+	{
+		BodySocketLeft.Detach();
+		ShoeActor->GetStaticMeshComponent()->SetCollisionProfileName("PhysicsActor");
+	}
 }
 
 void AMainCharacter::UpdateBodyPosition() const
@@ -310,7 +354,7 @@ void AMainCharacter::CheckAndHandleGripAnimations()
 }
 
 void AMainCharacter::CheckAndHandleGripControllerAnimations(UPrimitiveComponent* GrabSphere,
-	UGripMotionControllerComponent* CallingController, bool bGripPressed, EGripState& GripState)
+	UGripMotionControllerComponent* CallingController, const bool bGripPressed, EGripState& GripState)
 {
 	if (bGripPressed || CallingController->HasGrippedObjects())
 	{
@@ -351,12 +395,42 @@ void AMainCharacter::CheckAndHandleGrip(UPrimitiveComponent* GrabSphere, UGripMo
 
 	if (!IsValid(NearestObject))
 		return;
-	
-	if (!UKismetSystemLibrary::DoesImplementInterface(NearestObject, UVRGripInterface::StaticClass())
-		&& !UKismetSystemLibrary::DoesImplementInterface(NearestObject->GetOwner(), UVRGripInterface::StaticClass()))
-			return;
 
-	CallingController->GripObjectByInterface(NearestObject, NearestObject->GetComponentTransform());
+	if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(NearestObject))
+	{
+		// Grip Shoe Actor from component
+		if (AShoeActor* ShoeActor = Cast<AShoeActor>(PrimComp->GetOwner()))
+		{
+			ShoeActor->PrepareForGrip();
+			CheckAndDetachShoeFromBody(ShoeActor);
+			CallingController->GripObjectByInterface(ShoeActor, ShoeActor->GetActorTransform());
+		} else // Grip regular component
+		{
+			if (PrimComp->GetClass()->ImplementsInterface(UVRGripInterface::StaticClass()))
+			{
+				CallingController->GripObjectByInterface(PrimComp, PrimComp->GetComponentTransform());
+			}
+		}
+	} else
+	{
+		// Grip Shoe Actor from Actor
+		if (AShoeActor* ShoeActor = Cast<AShoeActor>(NearestObject))
+		{
+			ShoeActor->PrepareForGrip();
+			CheckAndDetachShoeFromBody(ShoeActor);
+			CallingController->GripObjectByInterface(ShoeActor, ShoeActor->GetActorTransform());
+		} else // Grip regular Actor from Actor
+		{
+			if (AActor* Actor = Cast<AActor>(NearestObject))
+			{
+				if (Actor->GetClass()->ImplementsInterface(UVRGripInterface::StaticClass()))
+				{
+					CallingController->GripObjectByInterface(Actor, Actor->GetActorTransform());
+				}
+			}
+		}
+	}
+
 }
 
 void AMainCharacter::DropAllGrips(UGripMotionControllerComponent* CallingController) const
@@ -370,27 +444,30 @@ void AMainCharacter::DropAllGrips(UGripMotionControllerComponent* CallingControl
 	
 	for (UObject* GrippedObject : GrippedObjectsArray)
 	{
-		if (UKismetSystemLibrary::DoesImplementInterface(GrippedObject, UVRGripInterface::StaticClass()))
+		// Drop all objects even if not implements interface
+		if (CallingController->DropObjectByInterface(GrippedObject))
 		{
-			if (CallingController->DropObjectByInterface(GrippedObject))
-			{
-				OnGripDropped.Broadcast(CallingController, GrippedObject);
-			}
-		} else
-		{
-			if (CallingController->DropObject(GrippedObject, 0, true))
-			{
-				OnGripDropped.Broadcast(CallingController, GrippedObject);
-			}
+			OnGripDropped.Broadcast(CallingController, GrippedObject);
 		}
 	}
 }
 
 // ReSharper disable once CppMemberFunctionMayBeConst
 void AMainCharacter::GripDropped(UGripMotionControllerComponent* GripController, UObject* DroppedObject)
-{	
-	AShoeActor* ShoeActor = Cast<AShoeActor>(DroppedObject);
-	if (ShoeActor != nullptr)
+{
+	AActor* DroppedActor = Cast<AActor>(DroppedObject);
+	if (!DroppedActor)
+	{
+		if (UPrimitiveComponent * PrimComp = Cast<UPrimitiveComponent>(DroppedObject))
+		{
+			DroppedActor = PrimComp->GetOwner();
+		}
+	}
+
+	if (!DroppedActor)
+		return;
+	
+	if (AShoeActor* ShoeActor = Cast<AShoeActor>(DroppedActor))
 	{
 		CheckAndAttachShoeToBody(ShoeActor);
 	}
@@ -505,8 +582,6 @@ void AMainCharacter::StopTunnelCrouch()
 	if (!bCrouching || bInTunnel || MainCharacterMovementComponent->bHandClimbing)
 		return;
 
-	//ULog::Error("+++++++++++++++++++++++++++++++++StopTunnelCrouch++++++++++++++++++++++++++++++++", LO_Both);
-
 	bCrouching = false;
 
 	VRRootReference->SetCapsuleHalfHeightVR(96.f);
@@ -565,7 +640,7 @@ void AMainCharacter::CheckAndPlayFootstepsSound()
 	StepCurrentDistance -= StepLength;
 
 	// find and play random sound
-	int32 SoundIndex = FMath::RandRange(0, FootstepsAssetList.Num() - 1);
+	const int32 SoundIndex = FMath::RandRange(0, FootstepsAssetList.Num() - 1);
 	UGameplayStatics::PlaySound2D(GetWorld(), FootstepsAssetList[SoundIndex], 0.5f);
 
 	MakeNoise(0.5f, this, GetActorLocation());
@@ -576,7 +651,7 @@ void AMainCharacter::ResetFootstepsSound()
 	bStepBegin = true;
 }
 
-bool AMainCharacter::IsFootstepsSoundActive()
+bool AMainCharacter::IsFootstepsSoundActive() const
 {
 	return (bMoveForward || bMoveRight) && !bInTunnel && !bCrouching && !bDead && !MainCharacterMovementComponent->bHandClimbing && !MainCharacterMovementComponent->IsFalling();
 }
@@ -602,7 +677,7 @@ void AMainCharacter::CheckAndPlayLandedSound()
 	}
 }
 
-bool AMainCharacter::IsLandedSoundActive()
+bool AMainCharacter::IsLandedSoundActive() const
 {
 	return !bInTunnel;
 }

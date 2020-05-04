@@ -25,3 +25,17 @@ void AShoeActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+void AShoeActor::PrepareForGrip()
+{
+	// Checking does the Actor already Held
+	TArray<FBPGripPair> HoldingControllers;
+	bool bIsHeld;
+	IsHeld(HoldingControllers, bIsHeld);
+
+	// Behaviour for already Held actors
+	if (bIsHeld)
+	{
+		HoldingControllers[0].HoldingController->DropObjectByInterface(this);
+	}
+}
+

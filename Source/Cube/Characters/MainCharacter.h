@@ -26,6 +26,82 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGripDropped, UGripMotionControllerComponent*, GripController, UObject*, DroppedObject);
 
+/**
+ * The structure for body sockets
+ */
+USTRUCT()
+struct FBodySocket
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	UStaticMeshComponent* BodyMesh;
+
+	UPROPERTY()
+	AActor* AttachedActor;
+	
+	// Socket Name
+	UPROPERTY()
+    FName Name;
+	
+	// Is a Socket busy
+	UPROPERTY()
+	bool bBusy;
+
+	bool Attach(AActor* Actor)
+	{
+		if (bBusy || AttachedActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Can't Attach to a BodySocket %s. The socket already Busy"), *Name.ToString());
+			return false;
+		}
+
+		UE_LOG(LogProfilingDebugging, Display, TEXT("An Actor %s is Attached to BodySocket %s"), *GetNameSafe(Actor), *Name.ToString());
+		
+		AttachedActor = Actor;
+		bBusy = true;
+
+		return true;
+	}
+
+	bool Detach()
+	{
+		if (!bBusy || AttachedActor == nullptr)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Can't Detach to a BodySocket %s. The socket is Not Busy"), *Name.ToString());
+			return false;
+		}
+
+		UE_LOG(LogProfilingDebugging, Display, TEXT("An Actor %s is Detached from BodySocket %s"), *GetNameSafe(AttachedActor), *Name.ToString());
+
+		bBusy = false;
+		AttachedActor = nullptr;
+		return true;
+	}
+
+	bool IsBusy() const { return bBusy; };
+
+	// Calculate a distance between a point and the socket
+	bool CalculateDistanceToPoint(const FVector Point, float& OutDistance) const
+	{
+		if (!IsValid(BodyMesh) || Name.IsNone())
+		{
+			UE_LOG(LogTemp, Error, TEXT("A body socket is not configured!"))
+			return false;
+		}
+
+		const FVector SocketLocation = BodyMesh->GetSocketLocation(Name);
+		if (SocketLocation.IsZero())
+		{
+			UE_LOG(LogTemp, Error, TEXT("A body socket is not found!"))
+			return false;
+		}
+		
+		OutDistance = (Point - SocketLocation).Size();
+		return true;
+	}
+};
+
 UENUM(BlueprintType)
 enum class EGripHand : uint8
 {
@@ -107,9 +183,24 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UPrimitiveComponent* GetNearestOverlappingObject(UPrimitiveComponent* OverlapComponent, FName Tag = "");
 
+	/**
+	 * Shoes properties and methods
+	 */
+	UPROPERTY()
+	FBodySocket BodySocketLeft;
+
+	UPROPERTY()
+    FBodySocket BodySocketRight;
+
 	// Attach a Shoe to the Body socket
 	UFUNCTION(BlueprintCallable)
-	void CheckAndAttachShoeToBody(AShoeActor* ShoeActor) const;
+	void CheckAndAttachShoeToBody(AShoeActor* ShoeActor);
+
+	UFUNCTION()
+	void AttachShoeToBody(AShoeActor* ShoeActor, FBodySocket& BodySocket) const;
+
+	UFUNCTION()
+	void CheckAndDetachShoeFromBody(AShoeActor* ShoeActor);
 
 	/**
 	 * Body properties and methods
@@ -296,7 +387,7 @@ public:
 
 	// Check Is footsteps sound is active
 	UFUNCTION(BlueprintCallable, Category = "Sound")
-	bool IsFootstepsSoundActive();
+	bool IsFootstepsSoundActive() const;
 
 	// Play sound on landing
 	UFUNCTION(BlueprintCallable, Category = "Sound")
@@ -304,5 +395,5 @@ public:
 
 	// Check Is landing sound is active
 	UFUNCTION(BlueprintCallable, Category = "Sound")
-	bool IsLandedSoundActive();
+	bool IsLandedSoundActive() const;
 };
